@@ -1,0 +1,4 @@
+streambot.local { 
+	reverse_proxy  streambot:3000
+}
+
