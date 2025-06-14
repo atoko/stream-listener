@@ -43,12 +43,13 @@ describe("TwitchOIDC", () => {
   });
 
   beforeEach(() => {
-    jest.resetModules();
     jest.clearAllMocks();
+    jest.resetModules();
   });
 
   afterEach(() => {
     globalThis.fetch = fetch;
+    jest.restoreAllMocks();
   });
 
   afterAll(() => {
@@ -81,7 +82,7 @@ describe("TwitchOIDC", () => {
     test("filepath", () => {
       setup();
       const filepath = TwitchOIDC.filepath("bot");
-      expect(filepath).toBe("./data/bot.json");
+      expect(filepath).toBe(`${process.cwd()}/data/bot.json`);
     });
 
     test("state", () => {
@@ -97,7 +98,7 @@ describe("TwitchOIDC", () => {
 
     test("nonce", () => {
       const nonce = TwitchOIDC.nonce();
-      expect(nonce).toMatch(/^[a-z0-9]{9}$/);
+      expect(nonce).toMatch(/^[a-z0-9]{16}$/);
     });
   });
 
@@ -109,7 +110,7 @@ describe("TwitchOIDC", () => {
 
     const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
       client_id,
-      response_type: "token",
+      response_type: "code",
       redirect_uri,
       state,
       nonce,
@@ -134,7 +135,7 @@ describe("TwitchOIDC", () => {
         JSON.stringify({
           access_token,
           refresh_token,
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -160,7 +161,7 @@ describe("TwitchOIDC", () => {
         JSON.stringify({
           access_token,
           refresh_token,
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -201,7 +202,7 @@ describe("TwitchOIDC", () => {
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -247,7 +248,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 400,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -290,7 +291,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 405,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -333,7 +334,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 405,
           json: () => Promise.reject(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -372,7 +373,7 @@ describe("TwitchOIDC", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const data = {
@@ -387,7 +388,7 @@ describe("TwitchOIDC", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -401,7 +402,9 @@ describe("TwitchOIDC", () => {
       expect(response).toMatchObject({
         type: "data" as const,
         data,
-        message: `${data.login} with ${JSON.stringify(data.scopes)} scopes was successfully validated`,
+        message: `${data.login} with ${JSON.stringify(
+          data.scopes
+        )} scopes was successfully validated`,
       });
     });
 
@@ -416,7 +419,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 402,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -444,7 +447,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 404,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -472,7 +475,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 402,
           json: () => Promise.reject(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -517,8 +520,8 @@ describe("TwitchOIDC", () => {
             refresh_token: oidc.refreshToken,
           },
           null,
-          4,
-        ),
+          4
+        )
       );
 
       expect(response).toMatchObject({
@@ -547,7 +550,7 @@ describe("TwitchOIDC", () => {
 
       expect(mockedWriteFileSync).toHaveBeenCalledWith(
         expect.stringContaining(tempfile),
-        expect.stringContaining(access_token),
+        expect.stringContaining(access_token)
       );
 
       expect(response).toMatchObject({

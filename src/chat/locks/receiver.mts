@@ -4,7 +4,7 @@ export type LocksActionCommandMessage = {
   action: (typeof LocksChatCommands)[number];
 };
 export function isLocksActionCommand(
-  message: any,
+  message: any
 ): message is LocksActionCommandMessage {
   return (
     typeof message === "object" &&

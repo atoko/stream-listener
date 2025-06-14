@@ -22,12 +22,12 @@ services:
     environment:
       SERVER_PORT: 3000
       SERVER_REDIRECT_URL: http://streambot:3000/authorize
-      TWITCH_CLIENT_ID: mueydej92p86hxi1lq00omzhqztbw6
-      TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET}
-      TWITCH_BROADCASTER_ID: 161697677
-      TWITCH_BROADCASTER_NAME: memtooth
+      TWITCH_CLIENT_ID:
+      TWITCH_CLIENT_SECRET:
+      TWITCH_BROADCASTER_ID:
+      TWITCH_BROADCASTER_NAME:
       TWITCH_BOT_ID:
-      TWITCH_BOT_NAME: sennx
+      TWITCH_BOT_NAME:
     ports:
       - 3000:3000
     healthcheck:

@@ -1,9 +1,9 @@
 import open from "open";
 import { TWITCH_ENVIRONMENT } from "./environment.mts";
 import { writeFileSync } from "fs";
-import { inspect } from "util";
 import EventEmitter from "events";
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
+import { Logger } from "../logging.mjs";
 
 export const TwitchOIDCEntityKinds = ["bot", "caster"] as const;
 export type TwitchOIDCEntityKind = (typeof TwitchOIDCEntityKinds)[number];
@@ -31,11 +31,13 @@ export class TwitchOIDC extends EventEmitter {
   }
 
   static state({ userId, scope }: { userId?: string; scope?: string }) {
-    return `${Math.random().toString(36).substring(2, 4)}-${userId ?? "unknown"}-${scope ?? "unknown"}`;
+    return `${Math.random().toString(36).substring(0, 9)}-${
+      userId ?? "unknown"
+    }-${scope ?? "unknown"}`;
   }
 
   static nonce() {
-    return Math.random().toString(36).substring(2, 15);
+    return Math.random().toString(36).substring(0, 15);
   }
 
   static async load(entity: TwitchOIDCEntity) {
@@ -43,7 +45,11 @@ export class TwitchOIDC extends EventEmitter {
     await oidc.read();
 
     if (!oidc.accessToken) {
-      console.error("[OIDC] No access token found, authorizing");
+      Logger.withMetadata({
+        entity,
+        oidc,
+      }).error("[OIDC] No access token found, authorizing");
+
       await oidc.authorize();
       return oidc;
     }
@@ -54,29 +60,40 @@ export class TwitchOIDC extends EventEmitter {
 
     if (validation.type === "error") {
       if (validation.known === "invalid_access_token") {
-        console.warn("[OIDC] Invalid access token, refreshing");
+        Logger.withMetadata({
+          validation,
+        }).warn("[OIDC] Invalid access token, refreshing");
+
         const refresh = await oidc.refresh();
+
         if (
           refresh.type === "error" &&
           refresh.known === "invalid_refresh_token"
         ) {
-          console.error("[OIDC] Authorizing access token");
+          Logger.withMetadata({
+            refresh,
+          }).error("[OIDC] Invalid access token, refreshing");
+
           await oidc.authorize();
         } else if (refresh.type === "data") {
-          console.log("[OIDC] Access token refreshed successfully");
+          Logger.info("[OIDC] Access token refreshed successfully");
+
           if (refresh.data?.access_token) {
             oidc.accessToken = refresh.data.access_token;
           } else {
-            console.error("[OIDC] No access token in refresh response");
+            Logger.withMetadata({
+              oidc,
+            }).error("[OIDC] No access token in refresh response");
           }
           oidc.refreshToken = refresh.data?.refresh_token;
         } else {
-          console.warn(
-            `[OIDC] Unknown error during refresh ${inspect(validation)}`,
-          );
+          Logger.withMetadata({
+            validation,
+          }).warn(`[OIDC] Unknown error during refresh`);
         }
       }
     }
+
     return oidc;
   }
 
@@ -87,7 +104,7 @@ export class TwitchOIDC extends EventEmitter {
       this.refreshToken = data.refresh_token;
       return data;
     } catch (e) {
-      console.error(`[OIDC] No Twitch OIDC data: ${e}`);
+      Logger.withError(e).error(`[OIDC] No Twitch OIDC data`);
     }
   }
 
@@ -107,7 +124,7 @@ export class TwitchOIDC extends EventEmitter {
         scope: this.entity.scope,
       })
         .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join("&")}`,
+        .join("&")}`
     );
   }
 
@@ -115,7 +132,7 @@ export class TwitchOIDC extends EventEmitter {
     try {
       const response = await fetch("https://id.twitch.tv/oauth2/validate", {
         method: "GET",
-        headers: { Authorization:  `OAuth ${accessToken}` },
+        headers: { Authorization: `OAuth ${accessToken}` },
       });
 
       const data = (await response.json()) as {
@@ -128,7 +145,9 @@ export class TwitchOIDC extends EventEmitter {
         return {
           type: "data" as const,
           data,
-          message: `${data.login} with ${JSON.stringify(data.scopes)} scopes was successfully validated`,
+          message: `${data.login} with ${JSON.stringify(
+            data.scopes
+          )} scopes was successfully validated`,
         } as const;
       } else {
         const { message } = data;
@@ -219,7 +238,7 @@ export class TwitchOIDC extends EventEmitter {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        },
+        }
       );
 
       const data = (await response.json()) as {
@@ -255,12 +274,19 @@ export class TwitchOIDC extends EventEmitter {
     }
   }
 
-  async write({ refresh, access }: { refresh?: string; access?: string }) {
+  public write = ({
+    refresh,
+    access,
+  }: {
+    refresh?: string;
+    access?: string;
+  }) => {
     try {
       this.accessToken = access || this.accessToken;
       this.refreshToken = refresh || this.refreshToken;
 
-      console.log(`[OIDC] Writing Twitch OIDC data: ${JSON.stringify(this)}`);
+      Logger.info(`[OIDC] Writing Twitch OIDC data`);
+
       this.emit("authenticated", {
         access,
         refresh,
@@ -283,15 +309,15 @@ export class TwitchOIDC extends EventEmitter {
             refresh_token: this.refreshToken,
           },
           null,
-          4,
-        ),
+          4
+        )
       );
 
       return {
         type: "data",
         access,
         refresh,
-        message: `${this.entity.kind} tokens successfully written to auth.json`,
+        filepath,
       };
     } catch (e) {
       return {
@@ -299,5 +325,5 @@ export class TwitchOIDC extends EventEmitter {
         error: { message: `Write error: ${JSON.stringify(e)}` },
       };
     }
-  }
+  };
 }

@@ -1,140 +1,103 @@
 import { createServer } from "http";
 import { TwitchOIDC } from "../twitch/oidc.mts";
-import { TWITCH_ENVIRONMENT } from "../twitch/environment.mts";
 import { extname, join, dirname } from "path";
 import { readFile, stat } from "fs";
+import { authorize } from "./routes/authorize.mjs";
+import { PluginInstance } from "../plugins/reducer.mjs";
+import { parsePath } from "ufo";
+import VError from "verror";
+import { URLSearchParams } from "node:url";
+import { Logger } from "../logging.mjs";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
 
-export function httpServer({
-  port,
-  entities,
-}: {
+export type HttpServerOptions = {
   port: number;
   entities: TwitchOIDC[];
-}) {
+  plugin: PluginInstance;
+};
+
+export function httpServer({ port, entities, plugin }: HttpServerOptions) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
-    const pathname = url.pathname;
-    const code = url.searchParams.get("code");
+
+    const { pathname, search, hash } = parsePath(url.pathname);
     const state = url.searchParams.get("state");
     const userId = state?.split("-")[1];
-    const scope = state?.split("-")[2];
-
-    if (pathname === "/" && code) {
-      console.log(
-        `[SERVER] ${userId}: Twitch authentication code received ${code}`,
-      );
-    }
+    const code = url.searchParams.get("code");
 
     if (pathname === ".well-known/healthcheck") {
       res.writeHead(200, { "Content-Type": "text/plain" });
       return res.end("OK");
     }
 
-    if (pathname === "/authorize") {
-      if (code) {
-        console.log(
-          `[SERVER] ${userId}: Twitch authentication code received ${code}`,
-        );
+    if (pathname.startsWith("/plugin/")) {
+      const name = (() => {
+        const path = pathname.split("/");
+        path.shift();
 
-        const token = await TwitchOIDC.token({
-          code,
-          redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
-        });
+        const plugin = path.shift();
 
-        if (token.type === "data") {
-          console.log(
-            `[SERVER] ${userId}: Twitch access token received ${token.data.access_token}`,
-          );
-          const validation = await TwitchOIDC.validate({
-            accessToken: token.data.access_token,
-          });
-
-          console.log(
-            `[SERVER] ${userId}: Access token is valid, ${validation.type}`,
-          );
-          if (validation.type === "data") {
-            let success = false;
-            await Promise.all(
-              entities.map(async (oidc) => {
-                if (oidc.entity.id === userId) {
-                  console.log(
-                    `[SERVER] ${oidc.entity.id}: Access token is valid, resubscribing`,
-                  );
-
-                  success = true;
-                  const response = await oidc.write({
-                    access: token.data.access_token,
-                    refresh: token.data.refresh_token,
-                  });
-                  console.debug(`${JSON.stringify(response)}`);
-                }
-              }),
-            );
-
-            if (success) {
-              res.writeHead(200, { "Content-Type": "text/html" });
-              return res.end(
-                "<h1>Authentication successful</h1><p>You can close this window.</p>",
-              );
-            } else {
-              res.writeHead(400, { "Content-Type": "text/html" });
-              const url = [
-                `https://id.twitch.tv/oauth2/authorize`,
-                encodeURIComponent(
-                  Object.entries({
-                    client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
-                    redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
-                    force_verify: true,
-                    scope: scope ?? "",
-                    response_type: "token",
-                    state: TwitchOIDC.state({ userId, scope }),
-                    nonce: TwitchOIDC.nonce(),
-                  })
-                    .map(
-                      ([key, value]) => `${key}=${encodeURIComponent(value)}`,
-                    )
-                    .join("&"),
-                ),
-              ].join("?");
-
-              return res.end(`
-                  <!DOCTYPE html>
-                  <html lang="en">
-                  <head>
-                      <meta charset="UTF-8">
-                      <title>Authentication</title>
-                  </head>
-                  <body>
-                      <script defer>
-                          if (window.confirm('Please authenticate with user id : ${userId}. Reauthenticate with the correct user id account?')) {
-                              window.location.href = "${url}"
-                          } else {
-                              const p = document.createElement("p");
-                              const h1 = document.createElement("h1");
-                              h1.textContent = "Authentication failed";
-                              p.textContent = "Hope you are able to try again some other time.";
-
-                              document.body.appendChild(h1, p);
-                          }
-                      </script>
-                  </body>
-                  </html>
-              `);
-            }
-          }
-        } else {
-          res.writeHead(400, { "Content-Type": "text/html" });
-          return res.end(
-            "<h1>Missing authentication code</h1><p>Please try again.</p>",
+        if (plugin === undefined) {
+          throw new VError(
+            {
+              info: {
+                url,
+              },
+            },
+            "Plugin path undefined"
           );
         }
-      } else {
-        res.writeHead(400);
-        return res.end("Something went wrong with authorization: Missing code");
+        return plugin;
+      })();
+
+      const params = new URLSearchParams(search);
+
+      if (plugin.reducer === undefined) {
+        plugin.reducer = await PluginInstance.load(name, {
+          reducer:
+            params.get("reducer") ??
+            (() => {
+              throw new VError(
+                {
+                  info: {
+                    params,
+                    name,
+                    url,
+                  },
+                },
+                "Search param 'reducer' is required"
+              );
+            })(),
+        });
+
+        await plugin.reducer.initialize();
       }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify(plugin.reducer.read(), null, 4));
+    }
+
+    // Authentication
+    if (pathname === "/" && code) {
+      Logger.withMetadata({
+        userId,
+        code,
+      }).info(`[SERVER] Twitch authentication code received`);
+
+      return;
+    }
+
+    if (pathname === "/authorize") {
+      const scope = state?.split("-")[2];
+
+      return await authorize(res)({
+        code,
+        userId,
+        entities,
+        scope,
+      });
     }
 
     let filePath =
@@ -181,7 +144,9 @@ export function httpServer({
     server,
     listen: () => {
       server.listen(port ?? 3333, () => {
-        console.log(`[SERVER] HTTP server listening on port ${port}`);
+        Logger.withMetadata({
+          port,
+        }).info(`[SERVER] HTTP server listening on port`);
       });
     },
   };

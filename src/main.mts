@@ -9,6 +9,7 @@ import {
 } from "./twitch/environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
+import { PluginInstance } from "./plugins/reducer.mjs";
 
 const auth = {
   bot: await TwitchOIDC.load({
@@ -25,9 +26,12 @@ const auth = {
   }),
 };
 
+const plugin = new PluginInstance();
+
 const http = httpServer({
   port: TWITCH_ENVIRONMENT.SERVER_PORT,
   entities: [auth.caster],
+  plugin,
 });
 
 const wss = websocketServer({ http });
@@ -37,14 +41,26 @@ http.listen();
 const caster = new TwitchCasterClient(
   auth.caster,
   new TwitchIrcClient(auth.bot),
-  wss,
+  wss
 );
 
-wss.withIrc(caster.irc);
+// wss.withIrc(caster.irc);
 
-for await (const event of on(auth.caster, "authenticated")) {
-  console.log(`[AUTH] ${JSON.stringify(event)}`);
-  await caster.connect();
-  await caster.subscribe();
-}
-// caster.twitch.connect();
+// const { IS_FORK } = env;
+// new Worker(import.meta.filename, {
+//   env: {
+//     IS_FORK: "true",
+//   },
+// });
+
+// if (IS_FORK) {
+//   for await (const _ of on(auth.bot, "authenticated")) {
+//     caster.irc.connect();
+//     await caster.irc.subscribe();
+//   }
+// } else {
+  for await (const _ of on(auth.caster, "authenticated")) {
+    await caster.connect();
+    await caster.subscribe();
+  }
+// }

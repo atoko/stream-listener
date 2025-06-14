@@ -1,15 +1,23 @@
-import { TwitchOIDC, type TwitchOIDCEntity } from "../oidc.mjs";
+import { TwitchOIDC } from "../oidc.mjs";
 import {
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
 } from "../environment.mjs";
+import { Logger } from "../../logging.mjs";
 
 export const subscribe = async (
   entity: TwitchOIDC,
-  type: `channel.${`channel_points_custom_reward_redemption.${"add"}` | `chat.${`clear` | "clear_user_messages" | "message" | "message_delete" | "notification"}`}`,
+  type: `channel.${
+    | `channel_points_custom_reward_redemption.${"add"}`
+    | `chat.${
+        | `clear`
+        | "clear_user_messages"
+        | "message"
+        | "message_delete"
+        | "notification"}`}`,
   version: "1",
-  session_id: string,
+  session_id: string
 ) => {
   try {
     const subEventURL = `${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_HTTP_URL}/eventsub/subscriptions`;
@@ -42,28 +50,35 @@ export const subscribe = async (
       }>;
     };
 
-    console.log("Register event sub result ", { result });
+    Logger.withMetadata({
+      import: import.meta.filename,
+      result,
+    }).info("Register event sub result");
+
     const isStatus401 = response.status === 401;
     const isInvalidToken = result.message === "Invalid Oauth token";
 
-    console.log(
-      `isStatus401: ${isStatus401} && isInvalidToken: ${isInvalidToken}`,
-    );
+    Logger.metadataOnly({
+      isStatus401,
+      isInvalidToken,
+    });
 
-    if (response.ok)
-      return console.log(
-        `Subscribed to ${result.data[0].type} [${result.data[0].id}]`,
-      );
+    if (response.ok) {
+      return Logger.withMetadata({
+        id: result.data[0].id,
+        type: result.data[0].type,
+      }).info(`Subscribed`);
+    }
+
     if (isStatus401 && isInvalidToken) {
-      // await entity.authorize();
+      // await entity.routes();
     } else {
-      console.log(
-        `Register event subs error: ${response.status}: ${result.message}`,
-      );
+      Logger.withMetadata({
+        status: response.status,
+        message: result.message,
+      }).info(`Register event subs error`);
     }
   } catch (e) {
-    console.error(
-      `Register event subs exceptional error: ${JSON.stringify(e)}`,
-    );
+    Logger.withError(e).error(`Register event subs exceptional error`);
   }
 };
