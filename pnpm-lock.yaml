@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@levicape/loglayer-effect':
-        specifier: latest
-        version: 1.0.0(yk7fdfrfdm5djpgkhmlh6reiqi)
+        specifier: ^1.0.1
+        version: 1.0.1(yk7fdfrfdm5djpgkhmlh6reiqi)
       '@loglayer/plugin':
         specifier: ^2.1.0
         version: 2.1.0
@@ -744,8 +744,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@levicape/loglayer-effect@1.0.0':
-    resolution: {integrity: sha512-Q1oLK6JeK6XD0rBgnweYv0Qr/p4UAxK4YMTNTovwNg5Fn/XM2FCg8wovHVBrY3TE1URkcHYY3/1nZ2RFDjc9nw==}
+  '@levicape/loglayer-effect@1.0.1':
+    resolution: {integrity: sha512-cveijj5NOhn8QkVkqsaMvnXhjHnEbbKNorAYQTLsvyMjPkwxQrY/up/0LDg2IKnmRT/gMgFa30cPuWv1pqd1Ag==}
     peerDependencies:
       '@aws-lambda-powertools/logger': ^2.21.0
       '@effect/platform': ^0.84.10
@@ -3498,7 +3498,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@levicape/loglayer-effect@1.0.0(yk7fdfrfdm5djpgkhmlh6reiqi)':
+  '@levicape/loglayer-effect@1.0.1(yk7fdfrfdm5djpgkhmlh6reiqi)':
     dependencies:
       '@aws-lambda-powertools/logger': 2.21.0
       '@effect/platform': 0.84.11(effect@3.16.7)

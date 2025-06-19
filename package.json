@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "Pedro Cardona",
   "dependencies": {
-    "@levicape/loglayer-effect": "latest",
+    "@levicape/loglayer-effect": "^1.0.1",
     "@loglayer/plugin": "^2.1.0",
     "@loglayer/transport-aws-lambda-powertools": "^3.1.0",
     "@loglayer/transport-consola": "^2.1.0",

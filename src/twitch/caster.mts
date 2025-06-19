@@ -61,14 +61,12 @@ export class TwitchCasterClient extends EventEmitter {
       setTimeout(() => {
         Logger.withMetadata({
           event,
-        }).info(
-          `[CASTER] Websocket closed, reconnecting Twitch IRC WebSocket...`
-        );
+        }).info(`[CASTER] Websocket closed, reconnecting Eventsub`);
         this.websocket = null;
 
         this.connect();
         this.subscribe();
-      }, 1500);
+      }, 2500);
     };
 
     websocket.onmessage = (event) => {

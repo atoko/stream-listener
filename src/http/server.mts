@@ -148,10 +148,6 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
         Logger.withMetadata({
           port,
         }).info(`[SERVER] HTTP server listening on port`);
-
-        entities.forEach((entity) => {
-          entity.emit("listening");
-        });
       });
     },
   };

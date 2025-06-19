@@ -11,6 +11,7 @@ import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
 import { PluginInstance } from "./plugins/reducer.mjs";
 import { isMainThread, Worker } from "node:worker_threads";
+import { Logger } from "./logging.mjs";
 
 const oidc = {
   caster: await TwitchOIDC.load({
@@ -41,24 +42,51 @@ const caster = new TwitchCasterClient(
   new TwitchIrcClient(oidc.bot),
   wss
 );
-http.listen();
+
+let logger = Logger.child();
 
 if (isMainThread) {
+  logger = logger.withContext({
+    thread: "eventsub",
+  });
+
+  logger.info("Waiting for caster authentication");
+  http.listen();
+  Object.values(oidc).forEach((entity) => {
+    entity.emit("listening");
+  });
+  logger.debug("Http server started. Emitted 'listening' event");
+
   let isWorkerStarted = false;
   for await (const _ of on(oidc.caster, "authenticated")) {
+    logger.info("Caster connecting");
     await caster.connect();
     await caster.subscribe();
+    logger.debug("Caster subscribed");
 
     if (!isWorkerStarted) {
+      logger.info("Starting worker thread");
       await once(oidc.bot, "authenticated");
       new Worker(new URL(import.meta.url));
       isWorkerStarted = true;
+      logger.debug("Worker thread started");
     }
   }
 } else {
+  logger = logger.withContext({
+    thread: "irc",
+  });
+
   wss.withIrc(caster.irc);
-  for await (const _ of on(oidc.bot, "authenticated")) {
+  logger.info("Waiting for bot authentication");
+  oidc.bot.emit("listening");
+  logger.debug("Emitted server ready");
+
+  while (true) {
+    await once(oidc.bot, "authenticated");
+    logger.info("Connecting bot");
     caster.irc.connect();
     await caster.irc.subscribe();
+    logger.debug("Bot subscribed");
   }
 }
