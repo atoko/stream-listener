@@ -4,6 +4,8 @@ import { writeFileSync } from "fs";
 import EventEmitter from "events";
 import { mkdirSync } from "node:fs";
 import { Logger } from "../logging.mjs";
+import { MessageChannel } from "node:worker_threads";
+import { once } from "node:events";
 
 export const TwitchOIDCEntityKinds = ["bot", "caster"] as const;
 export type TwitchOIDCEntityKind = (typeof TwitchOIDCEntityKinds)[number];
@@ -21,6 +23,7 @@ export type TwitchOIDCAuthenticateEvent = {
 export class TwitchOIDC extends EventEmitter {
   public accessToken: string;
   public refreshToken: string | undefined = undefined;
+  public messageChannel: MessageChannel = new MessageChannel();
 
   constructor(public entity: TwitchOIDCEntity) {
     super();
@@ -42,57 +45,59 @@ export class TwitchOIDC extends EventEmitter {
 
   static async load(entity: TwitchOIDCEntity) {
     const oidc = new TwitchOIDC(entity);
-    await oidc.read();
+    once(oidc, "listening").then(async () => {
+      await oidc.read();
 
-    if (!oidc.accessToken) {
-      Logger.withMetadata({
-        entity,
-        oidc,
-      }).error("[OIDC] No access token found, authorizing");
-
-      await oidc.authorize();
-      return oidc;
-    }
-
-    const validation = await TwitchOIDC.validate({
-      accessToken: oidc.accessToken,
-    });
-
-    if (validation.type === "error") {
-      if (validation.known === "invalid_access_token") {
+      if (!oidc.accessToken) {
         Logger.withMetadata({
-          validation,
-        }).warn("[OIDC] Invalid access token, refreshing");
+          entity,
+          oidc,
+        }).error("[OIDC] No access token found, authorizing");
 
-        const refresh = await oidc.refresh();
+        await oidc.authorize();
+        return;
+      }
 
-        if (
-          refresh.type === "error" &&
-          refresh.known === "invalid_refresh_token"
-        ) {
-          Logger.withMetadata({
-            refresh,
-          }).error("[OIDC] Invalid access token, refreshing");
+      const validation = await TwitchOIDC.validate({
+        accessToken: oidc.accessToken,
+      });
 
-          await oidc.authorize();
-        } else if (refresh.type === "data") {
-          Logger.info("[OIDC] Access token refreshed successfully");
-
-          if (refresh.data?.access_token) {
-            oidc.accessToken = refresh.data.access_token;
-          } else {
-            Logger.withMetadata({
-              oidc,
-            }).error("[OIDC] No access token in refresh response");
-          }
-          oidc.refreshToken = refresh.data?.refresh_token;
-        } else {
+      if (validation.type === "error") {
+        if (validation.known === "invalid_access_token") {
           Logger.withMetadata({
             validation,
-          }).warn(`[OIDC] Unknown error during refresh`);
+          }).warn("[OIDC] Invalid access token, refreshing");
+
+          const refresh = await oidc.refresh();
+
+          if (
+            refresh.type === "error" &&
+            refresh.known === "invalid_refresh_token"
+          ) {
+            Logger.withMetadata({
+              refresh,
+            }).error("[OIDC] Invalid access token, refreshing");
+
+            await oidc.authorize();
+          } else if (refresh.type === "data") {
+            Logger.info("[OIDC] Access token refreshed successfully");
+
+            if (refresh.data?.access_token) {
+              oidc.accessToken = refresh.data.access_token;
+            } else {
+              Logger.withMetadata({
+                oidc,
+              }).error("[OIDC] No access token in refresh response");
+            }
+            oidc.refreshToken = refresh.data?.refresh_token;
+          } else {
+            Logger.withMetadata({
+              validation,
+            }).warn(`[OIDC] Unknown error during refresh`);
+          }
         }
       }
-    }
+    });
 
     return oidc;
   }

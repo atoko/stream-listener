@@ -34,7 +34,6 @@ export class TwitchCasterClient extends EventEmitter {
     if (interval) {
       // this.interval = setTimeout(() => {});
     }
-
   }
 
   async subscribe() {
@@ -59,17 +58,17 @@ export class TwitchCasterClient extends EventEmitter {
         event,
       }).info(`[CASTER] Eventsub connection closed`);
 
-      // setTimeout(() => {
-      //   Logger.withMetadata({
-      //     event,
-      //   }).info(
-      //     `[CASTER] Websocket closed, reconnecting Twitch IRC WebSocket...`,
-      //   );
-      //   this.websocket = null;
-      //
-      //   this.connect();
-      //   this.subscribe();
-      // }, 5000);
+      setTimeout(() => {
+        Logger.withMetadata({
+          event,
+        }).info(
+          `[CASTER] Websocket closed, reconnecting Twitch IRC WebSocket...`
+        );
+        this.websocket = null;
+
+        this.connect();
+        this.subscribe();
+      }, 1500);
     };
 
     websocket.onmessage = (event) => {

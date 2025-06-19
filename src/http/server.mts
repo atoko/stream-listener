@@ -8,6 +8,7 @@ import { parsePath } from "ufo";
 import VError from "verror";
 import { URLSearchParams } from "node:url";
 import { Logger } from "../logging.mjs";
+import EventEmitter from "events";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
@@ -147,6 +148,10 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
         Logger.withMetadata({
           port,
         }).info(`[SERVER] HTTP server listening on port`);
+
+        entities.forEach((entity) => {
+          entity.emit("listening");
+        });
       });
     },
   };
