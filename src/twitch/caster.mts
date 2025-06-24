@@ -13,60 +13,65 @@ import type {
   EventsubWelcomeMessage,
 } from "./api/eventsub.mjs";
 
+const logger = Logger.child().withPrefix("[CASTER]");
+
 export class TwitchCasterClient extends EventEmitter {
   websocket: WS | null = null;
-  interval: number;
+  delay: number = 5000;
+  last: number;
 
   constructor(
     private oidc: TwitchOIDC | null = null,
     public readonly irc: TwitchIrcClient,
-    private readonly server: ReturnType<typeof websocketServer>
+    private readonly server: ReturnType<typeof websocketServer>,
   ) {
     super();
   }
 
   async connect() {
-    Logger.info("[CASTER] Connecting to Twitch Eventsub");
+    logger.info("Connecting to Twitch Eventsub");
     this.websocket = new WS(TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_WEBSOCKET_URL);
-  }
-
-  async keepalive(interval?: number) {
-    if (interval) {
-      // this.interval = setTimeout(() => {});
-    }
   }
 
   async subscribe() {
     const { websocket } = this;
 
     if (!websocket) {
-      throw new VError("[CASTER] Eventsub is not connected");
+      throw new VError("Eventsub is not connected");
     }
 
     websocket.onerror = (e) => {
-      Logger.withMetadata({
-        error: serializeError(e),
-      }).error(`[CASTER] Eventsub error occurred`);
+      logger
+        .withMetadata({
+          error: serializeError(e),
+        })
+        .error(`Eventsub error occurred`);
     };
 
-    websocket.onopen = function (event) {
-      Logger.debug(`[CASTER] Eventsub websocket onopen`);
+    websocket.onopen = () => {
+      logger.debug(`Eventsub websocket onopen`);
+      this.delay = Math.max(this.delay / 3, 5000);
     };
 
     websocket.onclose = (event) => {
-      Logger.withMetadata({
-        event,
-      }).info(`[CASTER] Eventsub connection closed`);
+      logger
+        .withMetadata({
+          event: {
+            type: event.type,
+            code: event.code,
+            reason: event.reason,
+          },
+        })
+        .info(`Eventsub connection closed`);
 
+      this.delay = this.delay * 2;
       setTimeout(() => {
-        Logger.withMetadata({
-          event,
-        }).info(`[CASTER] Websocket closed, reconnecting Eventsub`);
+        logger.info(`Reconnecting Eventsub`);
         this.websocket = null;
 
         this.connect();
         this.subscribe();
-      }, 2500);
+      }, this.delay);
     };
 
     websocket.onmessage = (event) => {
@@ -79,33 +84,31 @@ export class TwitchCasterClient extends EventEmitter {
                 textData,
               },
             },
-            textData
+            textData,
           );
         }
       }
 
       const data = JSON.parse(
-        event.data.toString()
+        event.data.toString(),
       ) as unknown as EventsubMessage;
 
       switch (data.metadata.message_type) {
         case "session_welcome":
           const session_welcome = data as EventsubWelcomeMessage;
 
-          Logger.withMetadata({
-            session_welcome,
-          }).info(`[CASTER] Session Welcome`);
+          logger
+            .withMetadata({
+              session_welcome,
+            })
+            .info(`Session Welcome`);
 
-          const { payload } = session_welcome;
-          // this.keepalive(
-          //   session_welcome.payload.session.keepalive_timeout_seconds,
-          // );
-
+          // const { payload } = session_welcome;
           if (!this.oidc) {
-            throw new VError("[CASTER] Oidc not initialized");
+            throw new VError("Oidc not initialized");
           }
 
-          const oidc = this.oidc;
+          // const oidc = this.oidc;
           // setTimeout(() => {
           //   subscribe(
           //     oidc,
@@ -120,9 +123,9 @@ export class TwitchCasterClient extends EventEmitter {
         case "notification":
           const notification = data as EventsubNotificationMessage;
 
-          const parsedSubscription = {
-            ...notification.payload,
-          };
+          // const parsedSubscription = {
+          //   ...notification.payload,
+          // };
 
           // await subscriptionsHandler(
           //   data.metadata.subscription_type,

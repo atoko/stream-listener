@@ -56,6 +56,8 @@ export const authorize =
                   refresh: token.data.refresh_token,
                 });
 
+                oidc.onAuthenticate();
+
                 Logger.withMetadata({
                   type,
                   filepath,
@@ -63,14 +65,27 @@ export const authorize =
 
                 return;
               }
-            })
+            }),
           );
 
           if (success) {
             res.writeHead(200, { "Content-Type": "text/html" });
-            return res.end(
-              "<h1>Authentication successful</h1><p>You can close this window.</p>"
-            );
+            return res.end(`
+                <h1>Authentication successful</h1>
+                <p>You may close this window. It will close automatically in <span id="timer">5</span> seconds</p>
+                <script>
+                    let t = 5; 
+                    const timer = document.getElementById("timer");
+                    setInterval(() => { 
+                        if (t <= 0) {                      
+                            window?.close();   
+                        } else {
+                            t -= 1;
+                            timer.innerText = t;
+                        }
+                    }, 1000);
+                </script>
+            `);
           } else {
             res.writeHead(400, { "Content-Type": "text/html" });
             const url = [
@@ -86,7 +101,7 @@ export const authorize =
                   nonce: TwitchOIDC.nonce(),
                 })
                   .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-                  .join("&")
+                  .join("&"),
               ),
             ].join("?");
 
@@ -118,7 +133,7 @@ export const authorize =
       } else {
         res.writeHead(400, { "Content-Type": "text/html" });
         return res.end(
-          "<h1>Missing authentication code</h1><p>Please try again.</p>"
+          "<h1>Missing authentication code</h1><p>Please try again.</p>",
         );
       }
     } else {

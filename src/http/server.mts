@@ -47,7 +47,7 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
                 url,
               },
             },
-            "Plugin path undefined"
+            "Plugin path undefined",
           );
         }
         return plugin;
@@ -68,7 +68,7 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
                     url,
                   },
                 },
-                "Search param 'reducer' is required"
+                "Search param 'reducer' is required",
               );
             })(),
         });

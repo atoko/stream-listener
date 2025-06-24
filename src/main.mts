@@ -13,19 +13,25 @@ import { PluginInstance } from "./plugins/reducer.mjs";
 import { isMainThread, Worker } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 
+const logger = Logger.child().withPrefix("[MAIN]");
+
 const oidc = {
-  caster: await TwitchOIDC.load({
-    kind: "caster",
-    id: TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
-    name: TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
-    scope: "channel:manage:redemptions channel:read:redemptions",
-  }),
-  bot: await TwitchOIDC.load({
-    kind: "bot",
-    id: TWITCH_BOT.TWITCH_BOT_ID,
-    name: TWITCH_BOT.TWITCH_BOT_NAME,
-    scope: "chat:read chat:edit",
-  }),
+  caster: TwitchOIDC.load(
+    new TwitchOIDC({
+      kind: "caster",
+      id: TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
+      name: TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
+      scope: "channel:manage:redemptions channel:read:redemptions",
+    }),
+  ),
+  bot: TwitchOIDC.load(
+    new TwitchOIDC({
+      kind: "bot",
+      id: TWITCH_BOT.TWITCH_BOT_ID,
+      name: TWITCH_BOT.TWITCH_BOT_NAME,
+      scope: "chat:read chat:edit",
+    }),
+  ),
 };
 
 const plugin = new PluginInstance();
@@ -36,25 +42,14 @@ const http = httpServer({
 });
 
 const wss = websocketServer({ http });
+const irc = new TwitchIrcClient(oidc.bot);
 
-const caster = new TwitchCasterClient(
-  oidc.caster,
-  new TwitchIrcClient(oidc.bot),
-  wss
-);
-
-let logger = Logger.child();
+const caster = new TwitchCasterClient(oidc.caster, irc, wss);
 
 if (isMainThread) {
-  logger = logger.withContext({
-    thread: "eventsub",
-  });
-
   logger.info("Waiting for caster authentication");
   http.listen();
-  Object.values(oidc).forEach((entity) => {
-    entity.emit("listening");
-  });
+  oidc.caster.onListen();
   logger.debug("Http server started. Emitted 'listening' event");
 
   let isWorkerStarted = false;
@@ -66,27 +61,23 @@ if (isMainThread) {
 
     if (!isWorkerStarted) {
       logger.info("Starting worker thread");
-      await once(oidc.bot, "authenticated");
       new Worker(new URL(import.meta.url));
       isWorkerStarted = true;
       logger.debug("Worker thread started");
     }
   }
 } else {
-  logger = logger.withContext({
-    thread: "irc",
+  wss.withIrc(irc);
+
+  once(oidc.bot, "authenticated").then(async () => {
+    logger.info("Connecting irc");
+    irc.connect();
+    irc.subscribe();
+    logger.debug("irc subscribed");
   });
+  logger.debug("Listening to authentication events");
 
-  wss.withIrc(caster.irc);
   logger.info("Waiting for bot authentication");
-  oidc.bot.emit("listening");
+  oidc.bot.onListen();
   logger.debug("Emitted server ready");
-
-  while (true) {
-    await once(oidc.bot, "authenticated");
-    logger.info("Connecting bot");
-    caster.irc.connect();
-    await caster.irc.subscribe();
-    logger.debug("Bot subscribed");
-  }
 }

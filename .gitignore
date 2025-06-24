@@ -3,4 +3,4 @@ module
 node_modules
 **.local.json
 *.env
-data/*.json
+**/data/*.json

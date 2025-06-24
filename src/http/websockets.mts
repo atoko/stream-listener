@@ -20,7 +20,7 @@ export function websocketServer(props: WebSocketServerProps) {
 
     ws.on("message", (message) => {
       const command: LocksActionCommandMessage = JSON.parse(
-        message.toString()
+        message.toString(),
       ) as unknown as LocksActionCommandMessage;
       const outbox = chatReceiver(command);
       if (ircClient && Array.isArray(outbox)) {

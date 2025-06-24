@@ -1,47 +1,56 @@
-import { inspect } from "util";
 import {
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
 } from "./environment.mts";
 import { TwitchOIDC } from "./oidc.mts";
-import { WebSocket as WS } from "ws";
 import VError from "verror";
 import { Logger } from "../logging.mjs";
+
+const logger = Logger.child().withPrefix("[IRC]");
 
 export class TwitchIrcClient {
   websocket: WebSocket | null = null;
   constructor(protected oidc: TwitchOIDC) {}
 
+  static WELCOME_MESSAGES = ["001", "002", "003", "004", "375", "372", "376"];
+
+  static isWelcomeMessage(message: string) {
+    return message.split("\n").every((line, index) => {
+      return line.includes(this.WELCOME_MESSAGES[index]);
+    });
+  }
+
+  static isPingMessage(message: string) {
+    return message.startsWith("PING :tmi.twitch.tv");
+  }
+
+  static isAuthenticationError(message: string) {
+    return message.includes(
+      ":tmi.twitch.tv NOTICE * :Login authentication failed",
+    );
+  }
+
   connect() {
-    console.log(`[IRC] Connecting to Twitch IRC WebSocket`);
+    logger.info(`Connecting to Twitch IRC WebSocket`);
     this.websocket = new WebSocket(TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL);
   }
 
-  open(ev: Event) {
-    console.log("[IRC] WebSocket connection established");
-    if (this.websocket) {
-      this.websocket.send(`PASS oauth:${this.oidc?.accessToken}`);
-      this.websocket.send(`NICK ${TWITCH_BOT.TWITCH_BOT_NAME}`);
-      this.websocket.send(
-        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`
-      );
-    }
-  }
-
-  async subscribe() {
+  subscribe() {
     if (!this.websocket) {
       throw new VError("WebSocket is not connected");
     }
 
     this.websocket.onclose = (event) => {
-      Logger.withMetadata({
-        code: event.code,
-        reason: event.reason,
-      }).info(`[IRC] WebSocket connection closed`);
+      logger
+        .withMetadata({
+          code: event.code,
+          reason: event.reason,
+        })
+        .info(`WebSocket connection closed`);
 
       setTimeout(() => {
-        console.log("[IRC] Reconnecting to Twitch IRC WebSocket...");
+        logger.info("Reconnecting to IRC...");
         this.websocket = null;
 
         this.connect();
@@ -49,8 +58,8 @@ export class TwitchIrcClient {
       }, 5000);
     };
 
-    this.websocket.onopen = (event) => {
-      this.open?.(event);
+    this.websocket.onopen = () => {
+      this.open?.();
     };
 
     this.websocket.onmessage = (event: MessageEvent) => {
@@ -60,25 +69,27 @@ export class TwitchIrcClient {
         .replace(/\uDB40\uDC00/g, "")
         .trim();
 
-      if (message.startsWith("PING :tmi.twitch.tv")) {
-        Logger.withMetadata({
-          message,
-        }).info(`Received PING message: ${message}`);
+      if (TwitchIrcClient.isWelcomeMessage(message)) {
+        logger
+          .withMetadata({
+            message: message.split("\n").pop(),
+          })
+          .info(`Received welcome message`);
+      } else if (TwitchIrcClient.isPingMessage(message)) {
+        logger
+          .withMetadata({
+            message,
+          })
+          .info(`Received PING message: ${message}`);
         this.websocket?.send("PONG :tmi.twitch.tv");
-      } else if (
-        message.includes(":tmi.twitch.tv NOTICE * :Login authentication failed")
-      ) {
-        Logger.withMetadata().info(
-          `Received authentication failure message: ${message}`
-        );
+      } else if (TwitchIrcClient.isAuthenticationError(message)) {
+        logger.info(`Received authentication failure message: ${message}`);
 
         TwitchOIDC.validate({
           accessToken: this.oidc.accessToken,
         }).then((response) => {
           if (response.type === "data") {
-            Logger.withMetadata().info(
-              "Access token is valid, re-subscribing..."
-            );
+            logger.info("Access token is valid, re-subscribing...");
 
             this.subscribe();
           }
@@ -86,6 +97,7 @@ export class TwitchIrcClient {
       }
     };
   }
+
   public private(
     message: string,
     receiver?:
@@ -97,7 +109,7 @@ export class TwitchIrcClient {
           channel?: never;
           tell: string;
         }
-      | undefined
+      | undefined,
   ) {
     const { channel, tell } = receiver ?? {};
 
@@ -108,6 +120,20 @@ export class TwitchIrcClient {
 
     if (this.websocket) {
       this.websocket.send(`PRIVMSG ${target} :${message}`);
+    }
+  }
+
+  private open() {
+    logger.info("Opening irc connection");
+    if (this.websocket) {
+      this.websocket.send(`PASS oauth:${this.oidc?.accessToken}`);
+      this.websocket.send(`NICK ${TWITCH_BOT.TWITCH_BOT_NAME}`);
+      this.websocket.send(
+        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`,
+      );
+      logger.debug("WebSocket connection opened");
+    } else {
+      throw new VError("Websocket not initialized");
     }
   }
 }
