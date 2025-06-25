@@ -3,7 +3,7 @@ import {
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
-} from "../environment.mjs";
+} from "../../environment.mjs";
 import { Logger } from "../../logging.mjs";
 
 export const subscribe = async (

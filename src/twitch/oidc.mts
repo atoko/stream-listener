@@ -1,5 +1,5 @@
 import open from "open";
-import { TWITCH_ENVIRONMENT } from "./environment.mts";
+import {CONFIGURATION, TWITCH_ENVIRONMENT} from "../environment.mts";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import EventEmitter from "events";
 import { Logger } from "../logging.mjs";
@@ -128,21 +128,25 @@ export class TwitchOIDC extends EventEmitter {
   async authorize() {
     const userId = this.entity.id;
 
+
     const state = TwitchOIDC.state({ userId, scope: this.entity.scope });
     const nonce = TwitchOIDC.nonce();
-
-    await open(
-      `https://id.twitch.tv/oauth2/authorize?${Object.entries({
-        client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
-        response_type: "code",
-        redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
-        state,
-        nonce,
-        scope: this.entity.scope,
-      })
+    const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
+      client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
+      response_type: "code",
+      redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
+      state,
+      nonce,
+      scope: this.entity.scope,
+    })
         .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join("&")}`,
-    );
+        .join("&")}`;
+
+    if (CONFIGURATION.OIDC_AUTHORIZE_LINK !== undefined) {
+      Logger.info(`Login to Twitch with the following link: ${url}`);
+    } else {
+      await open(url);
+    }
   }
 
   static async validate({ accessToken }: { accessToken: string }) {

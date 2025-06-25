@@ -1,4 +1,4 @@
-import { TWITCH_ENVIRONMENT } from "./environment.mts";
+import { TWITCH_ENVIRONMENT } from "../environment.mts";
 import { TwitchOIDC } from "./oidc.mjs";
 import type { TwitchIrcClient } from "./irc.mts";
 import type { websocketServer } from "../http/websockets.mts";

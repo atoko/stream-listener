@@ -11,7 +11,7 @@ export const TWITCH_ENVIRONMENT = {
     env.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_SECONDS || 60
   }`,
   TWITCH_EVENTSUB_HTTP_URL: `https://api.twitch.tv/helix`,
-  SERVER_PORT: Number(env.SERVER_PORT) ?? 3000,
+  SERVER_PORT: Number(env.SERVER_PORT ?? "3133"),
   SERVER_REDIRECT_URL:
     env.SERVER_REDIRECT_URL || `http://localhost:${env.SERVER_PORT}/authorize`,
 };
@@ -25,3 +25,7 @@ export const TWITCH_BOT = {
   TWITCH_BOT_ID: env.TWITCH_BOT_ID || "twitch_bot",
   TWITCH_BOT_NAME: env.TWITCH_BOT_NAME || "twitch_bot",
 };
+
+export const CONFIGURATION = {
+  OIDC_AUTHORIZE_LINK: env.OIDC_AUTHORIZE_LINK || "false",
+}

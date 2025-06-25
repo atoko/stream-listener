@@ -6,7 +6,7 @@ import {
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
-} from "./twitch/environment.mts";
+} from "./environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
 import { PluginInstance } from "./plugins/reducer.mjs";

@@ -1,5 +1,5 @@
 import { TwitchOIDC } from "../../twitch/oidc.mjs";
-import { TWITCH_ENVIRONMENT } from "../../twitch/environment.mjs";
+import { TWITCH_ENVIRONMENT } from "../../environment.mjs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Logger } from "../../logging.mjs";
 
@@ -122,7 +122,8 @@ export const authorize =
                               h1.textContent = "Authentication failed";
                               p.textContent = "Hope you are able to try again some other time.";
 
-                              document.body.appendChild(h1, p);
+                              document.body.appendChild(h1);
+                              document.body.appendChild(p);
                           }
                       </script>
                   </body>
