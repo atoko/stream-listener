@@ -11,4 +11,5 @@ COPY . .
 
 RUN npm run build
 
+ENV OIDC_AUTHORIZE_LINK=true
 CMD ["node", "module/main.mjs", "--envfile=iac/.env"]

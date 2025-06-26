@@ -6,12 +6,14 @@ import {
 import { TwitchOIDC } from "./oidc.mts";
 import VError from "verror";
 import { Logger } from "../logging.mjs";
+import type { PluginInstance } from "../chat/reducer.mjs";
+import { ParseIrcMessage } from "./irc/message.mjs";
 
 const logger = Logger.child().withPrefix("[IRC]");
 
 export class TwitchIrcClient {
   websocket: WebSocket | null = null;
-  constructor(protected oidc: TwitchOIDC) {}
+  constructor(protected oidc: TwitchOIDC, protected plugin: PluginInstance) {}
 
   static WELCOME_MESSAGES = ["001", "002", "003", "004", "375", "372", "376"];
 
@@ -27,7 +29,7 @@ export class TwitchIrcClient {
 
   static isAuthenticationError(message: string) {
     return message.includes(
-      ":tmi.twitch.tv NOTICE * :Login authentication failed",
+      ":tmi.twitch.tv NOTICE * :Login authentication failed"
     );
   }
 
@@ -94,6 +96,34 @@ export class TwitchIrcClient {
             this.subscribe();
           }
         });
+      } else {
+        const parsed: Array<ReturnType<typeof ParseIrcMessage>> = message
+          .split("\n")
+          .map((message: string) => {
+            try {
+              return ParseIrcMessage(message);
+            } catch (e) {
+              logger.withError(e).error(`Failed to parse message: ${message}`);
+
+              return undefined;
+            }
+          })
+          .filter(Boolean as unknown as Array<unknown>);
+
+        logger
+          .withMetadata({
+            parsed: parsed.length,
+          })
+          .debug("Parsed messages");
+
+        parsed.forEach((message) => {
+          switch (message?.command) {
+            case "366": {
+              const { reducer } = this.plugin;
+              reducer?.action(message);
+            }
+          }
+        });
       }
     };
   }
@@ -109,7 +139,7 @@ export class TwitchIrcClient {
           channel?: never;
           tell: string;
         }
-      | undefined,
+      | undefined
   ) {
     const { channel, tell } = receiver ?? {};
 
@@ -129,7 +159,7 @@ export class TwitchIrcClient {
       this.websocket.send(`PASS oauth:${this.oidc?.accessToken}`);
       this.websocket.send(`NICK ${TWITCH_BOT.TWITCH_BOT_NAME}`);
       this.websocket.send(
-        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`,
+        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`
       );
       logger.debug("WebSocket connection opened");
     } else {

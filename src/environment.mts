@@ -13,7 +13,8 @@ export const TWITCH_ENVIRONMENT = {
   TWITCH_EVENTSUB_HTTP_URL: `https://api.twitch.tv/helix`,
   SERVER_PORT: Number(env.SERVER_PORT ?? "3133"),
   SERVER_REDIRECT_URL:
-    env.SERVER_REDIRECT_URL || `http://localhost:${env.SERVER_PORT}/authorize`,
+    env.SERVER_REDIRECT_URL ||
+    `http://localhost:${env.SERVER_PORT ?? "3133"}/authorize`,
 };
 
 export const TWITCH_BROADCASTER = {
@@ -28,4 +29,4 @@ export const TWITCH_BOT = {
 
 export const CONFIGURATION = {
   OIDC_AUTHORIZE_LINK: env.OIDC_AUTHORIZE_LINK || "false",
-}
+};

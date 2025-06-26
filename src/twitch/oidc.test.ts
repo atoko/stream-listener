@@ -10,23 +10,37 @@ import {
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeEach, mock } from "node:test";
-import { TWITCH_ENVIRONMENT } from "../environment.mts";
+import { beforeEach } from "node:test";
+import { CONFIGURATION, TWITCH_ENVIRONMENT } from "../environment.mts";
 
-const mockedOpen = jest.fn();
-const mockedWriteFileSync = jest.fn();
+const mocks = {
+  open: jest.fn(),
+  node_fs: {
+    mkdirSync: jest.fn(),
+    rmSync: jest.fn(),
+    writeFileSync: jest.fn(),
+    readFileSync: jest.fn(),
+  },
+  oidc: {
+    read: jest.fn(),
+    authorize: jest.fn(),
+  },
+} as const;
 
 jest.unstable_mockModule("open", () => {
   return {
     __esModule: true,
-    default: mockedOpen,
+    default: mocks.open,
   };
 });
 
 jest.unstable_mockModule("node:fs", () => {
   return {
     __esModule: true,
-    writeFileSync: mockedWriteFileSync,
+    mkdirSync: mocks.node_fs.mkdirSync,
+    readFileSync: mocks.node_fs.readFileSync,
+    rmSync: mocks.node_fs.rmSync,
+    writeFileSync: mocks.node_fs.writeFileSync,
   };
 });
 
@@ -56,10 +70,17 @@ describe("TwitchOIDC", () => {
     rmSync(tempdir, { recursive: true });
   });
 
-  const setup = ({ scope }: { scope?: string } = {}) => {
+  const setup = ({
+    scope,
+    filepath,
+  }: { scope?: string; filepath?: string } = {}) => {
     const mockState = `123456789-${scope}`;
     jest.spyOn(TwitchOIDC, "state").mockReturnValue(mockState);
     jest.spyOn(TwitchOIDC, "nonce").mockReturnValue("123456789");
+
+    if (filepath) {
+      jest.spyOn(TwitchOIDC, "filepath").mockReturnValue(filepath);
+    }
 
     const oidc = new TwitchOIDC({
       kind: "bot",
@@ -102,28 +123,67 @@ describe("TwitchOIDC", () => {
     });
   });
 
-  test("authorize", async () => {
-    const client_id = TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
-    const redirect_uri = TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL;
-    const { oidc, state, nonce } = setup();
-    await oidc.authorize();
+  describe("authorize", () => {
+    const original = {
+      CONFIGURATION: { ...CONFIGURATION },
+    };
 
-    const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
-      client_id,
-      response_type: "code",
-      redirect_uri,
-      state,
-      nonce,
-      scope: oidc.entity.scope,
-    })
-      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-      .join("&")}`;
+    beforeEach(() => {
+      Object.assign(CONFIGURATION, {
+        ...original.CONFIGURATION,
+      });
+    });
 
-    expect(open.default).toHaveBeenCalledWith(url);
+    test("authorize - OIDC_AUTHORIZE_LINK returns URL", async () => {
+      const client_id = TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
+      const redirect_uri = TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL;
+      const { oidc, state, nonce } = setup();
+      Object.assign(CONFIGURATION, {
+        OIDC_AUTHORIZE_LINK: "true",
+      });
+
+      const result = await oidc.authorize();
+      const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
+        client_id,
+        response_type: "code",
+        redirect_uri,
+        state,
+        nonce,
+        scope: oidc.entity.scope,
+      })
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .join("&")}`;
+
+      expect(result).toMatch(url);
+    });
+
+    test("authorize - OIDC_AUTHORIZE_LINK undefined calls open()", async () => {
+      const client_id = TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
+      const redirect_uri = TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL;
+      const { oidc, state, nonce } = setup();
+      Object.assign(CONFIGURATION, {
+        OIDC_AUTHORIZE_LINK: undefined,
+      });
+
+      await oidc.authorize();
+
+      const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
+        client_id,
+        response_type: "code",
+        redirect_uri,
+        state,
+        nonce,
+        scope: oidc.entity.scope,
+      })
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .join("&")}`;
+
+      expect(open.default).toHaveBeenCalledWith(url);
+    });
   });
 
   describe("load", () => {
-    test("load - waits for listening event", async () => {
+    test("load - waits for listening event before authorizing", async () => {
       const oidc = new TwitchOIDC({
         kind: "caster",
         id: "",
@@ -131,8 +191,10 @@ describe("TwitchOIDC", () => {
         scope: "",
       });
 
-      oidc.read = mock.fn();
-      oidc.authorize = mock.fn();
+      Object.assign(oidc, {
+        read: mocks.oidc.read,
+        authorize: mocks.oidc.authorize,
+      });
 
       TwitchOIDC.load(oidc);
 
@@ -140,58 +202,64 @@ describe("TwitchOIDC", () => {
       expect(oidc.authorize).not.toHaveBeenCalled();
 
       oidc.emit("listening");
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          expect(oidc.read).toHaveBeenCalled();
+          expect(oidc.authorize).toHaveBeenCalled();
+          resolve();
+        }, 1000);
+      });
     });
   });
 
   describe("read", () => {
     test("read - success", async () => {
-      const tempfile = join(tempdir, "TwitchOIDC-bot.json");
-      jest.spyOn(TwitchOIDC, "filepath").mockReturnValue(tempfile);
-
+      // Setup
+      const filepath = join(tempdir, "TwitchOIDC-bot.json");
       const access_token = "test-access-token";
       const refresh_token = "test-refresh-token";
+      const { oidc } = setup({ filepath });
 
+      // Act
       writeFileSync(
-        tempfile,
+        filepath,
         JSON.stringify({
           access_token,
           refresh_token,
-        }),
+        })
       );
 
-      const { oidc } = setup();
-      const tokens = (await oidc.read()).default;
+      // Assert
+      await new Promise<void>(async () => {
+        const tokens = await oidc.read();
 
-      expect(tokens).toMatchObject({
-        access_token,
-        refresh_token,
+        expect(tokens).toMatchObject({
+          access_token,
+          refresh_token,
+        });
       });
     });
 
-    test("read - throws", async () => {
-      const tempfile = join(tempdir, "TwitchOIDC-bot.json");
-      jest.spyOn(TwitchOIDC, "filepath").mockImplementation(() => {
-        return tempfile;
-      });
-
+    test("read - returns undefined if no data available", async () => {
+      const filepath = join(tempdir, "TwitchOIDC-bot.json");
       const access_token = "test-access-token";
       const refresh_token = "test-refresh-token";
+      const { oidc } = setup({
+        filepath,
+      });
 
       writeFileSync(
-        tempfile,
+        filepath,
         JSON.stringify({
           access_token,
           refresh_token,
-        }),
+        })
       );
 
-      const { oidc } = setup();
-      const tokens = (await oidc.read()).default;
+      const tokens = await oidc.read();
 
-      expect(tokens).toMatchObject({
-        access_token,
-        refresh_token,
-      });
+      expect(tokens).toBe(undefined);
     });
   });
 
@@ -223,7 +291,7 @@ describe("TwitchOIDC", () => {
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -269,7 +337,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 400,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -312,7 +380,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 405,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -355,7 +423,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 405,
           json: () => Promise.reject(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -394,7 +462,7 @@ describe("TwitchOIDC", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const data = {
@@ -409,7 +477,7 @@ describe("TwitchOIDC", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -424,7 +492,7 @@ describe("TwitchOIDC", () => {
         type: "data" as const,
         data,
         message: `${data.login} with ${JSON.stringify(
-          data.scopes,
+          data.scopes
         )} scopes was successfully validated`,
       });
     });
@@ -440,7 +508,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 402,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -468,7 +536,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 404,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -496,7 +564,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 402,
           json: () => Promise.reject(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -516,15 +584,17 @@ describe("TwitchOIDC", () => {
 
   describe("write", () => {
     test("write - success", async () => {
-      const tempfile = join(tempdir, "TwitchOIDC-bot.json");
-      mockedWriteFileSync.mockImplementation(() => {
+      const filepath = join(tempdir, "TwitchOIDC-bot.json");
+      mocks.node_fs.writeFileSync.mockImplementation(() => {
         return;
       });
 
       const access_token = "test-access-token";
       const refresh_token = "test-refresh-token";
 
-      const { oidc } = setup();
+      const { oidc } = setup({
+        filepath,
+      });
       oidc.accessToken = access_token;
       oidc.refreshToken = refresh_token;
 
@@ -533,34 +603,38 @@ describe("TwitchOIDC", () => {
         refresh: oidc.refreshToken,
       });
 
-      expect(mockedWriteFileSync).toHaveBeenCalledWith(
-        tempfile,
+      expect(mocks.node_fs.writeFileSync).toHaveBeenCalledWith(
+        filepath,
         JSON.stringify(
           {
             access_token: oidc.accessToken,
             refresh_token: oidc.refreshToken,
           },
           null,
-          4,
-        ),
+          4
+        )
       );
 
       expect(response).toMatchObject({
         type: "data",
-        message: `${oidc.entity.kind} tokens successfully written to auth.json`,
+        access_token,
+        refresh_token,
+        filepath,
       });
     });
 
     test("write - error", async () => {
-      const tempfile = join(tempdir, "TwitchOIDC-bot.json");
-      mockedWriteFileSync.mockImplementation(() => {
+      const filepath = join(tempdir, "TwitchOIDC-bot.json");
+      mocks.node_fs.writeFileSync.mockImplementation(() => {
         throw new Error("Failed to write file");
       });
 
       const access_token = "test-access-token";
       const refresh_token = "test-refresh-token";
 
-      const { oidc } = setup();
+      const { oidc } = setup({
+        filepath,
+      });
       oidc.accessToken = access_token;
       oidc.refreshToken = refresh_token;
 
@@ -569,9 +643,9 @@ describe("TwitchOIDC", () => {
         refresh: oidc.refreshToken,
       });
 
-      expect(mockedWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining(tempfile),
-        expect.stringContaining(access_token),
+      expect(mocks.node_fs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining(filepath),
+        expect.stringContaining(access_token)
       );
 
       expect(response).toMatchObject({

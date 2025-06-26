@@ -34,10 +34,10 @@ const _IrcMessageChannelCommand = [
   "376",
 ] as const;
 let isIrcMessageIdentifier = (
-  identifier: string,
+  identifier: string
 ): identifier is IrcMessageIdentifier => {
   return IRC_MESSAGE_IDENTIFIER_DELIMITER.every((delimiter) =>
-    identifier.includes(delimiter),
+    identifier.includes(delimiter)
   );
 };
 
@@ -59,17 +59,18 @@ export type IrcMessage =
   `${IrcMessageTags}${IrcMessageIdentifier} ${IrcMessageCommand} ${string}`;
 
 export const ParseIrcMessage = (message: string | IrcMessage) => {
-  const stack = message.split(" ");
-  if (!stack.length) {
+  const stack = message.trim().split(" ");
+  if (stack.length === 0) {
     throw new VError(
       {
         info: {
           message,
         },
       },
-      "Could not parse message",
+      "Could not parse message"
     );
   }
+
   const tags: IrcMessageTags | undefined = stack[0].startsWith("@")
     ? (stack.shift() as IrcMessageTags)
     : undefined;
@@ -80,7 +81,7 @@ export const ParseIrcMessage = (message: string | IrcMessage) => {
           stack,
         },
       },
-      "Message identifier not found",
+      "Message identifier not found"
     );
   }
   const identifierJson: IrcMessageIdentifier =
@@ -91,14 +92,14 @@ export const ParseIrcMessage = (message: string | IrcMessage) => {
     const [name, alt, host] = IRC_MESSAGE_IDENTIFIER_DELIMITER.map(
       (delimiter: string, order) => {
         const from = identifierJson.indexOf(delimiter);
-        let to = identifierJson.length - 1;
+        let to = identifierJson.length;
         if (order !== IRC_MESSAGE_IDENTIFIER_DELIMITER.length - 1) {
           to = identifierJson.indexOf(
-            IRC_MESSAGE_IDENTIFIER_DELIMITER[order + 1],
+            IRC_MESSAGE_IDENTIFIER_DELIMITER[order + 1]
           );
         }
-        return identifierJson.slice(from, to);
-      },
+        return identifierJson.slice(from + 1, to);
+      }
     );
 
     identifier = {
@@ -107,20 +108,29 @@ export const ParseIrcMessage = (message: string | IrcMessage) => {
       host,
     };
   } else {
-    throw new VError("Could not parse message identifier");
+    throw new VError(
+      {
+        info: {
+          stack,
+        },
+      },
+      "Could not parse message identifier"
+    );
   }
 
-  const [command, channel, command421]: [IrcMessageCommand, string, string?] =
-    (stack.shift()?.split(" ") as [IrcMessageCommand, string]) ?? [];
+  const [command, channel, ...parts]: [IrcMessageCommand, string, string?] =
+    (stack as [IrcMessageCommand, string]) ?? [];
+  const content = parts.join(" ");
+
   if (_IrcMessageChannelCommand.includes(command as IrcMessageChannelCommand)) {
     switch (command) {
       case "RECONNECT":
-        logger.info(
-          "The Twitch IRC server is about to terminate the connection for maintenance.",
+        logger.warn(
+          "The Twitch IRC server is about to terminate the connection for maintenance."
         );
         break;
       case "421":
-        logger.info(`Unsupported IRC command: ${command421}`);
+        logger.debug(`Unsupported IRC command: ${content}`);
         return null;
       case "001":
         break;
@@ -132,7 +142,7 @@ export const ParseIrcMessage = (message: string | IrcMessage) => {
       case "372":
       case "375":
       case "376":
-        logger.info(`Numeric message: ${command}`);
+        logger.debug(`Numeric message: ${command} ${identifierJson}`);
         return null;
     }
 
@@ -145,20 +155,13 @@ export const ParseIrcMessage = (message: string | IrcMessage) => {
     _IrcMessageTaggedCommands.includes(command as IrcMessageTaggedCommand)
   ) {
     return {
-      command,
       channel,
+      command,
+      content,
+      identifier,
       tags,
     } as const;
   } else {
     throw new VError("Could not parse command");
   }
-
-  throw new VError(
-    {
-      info: {
-        stack,
-      },
-    },
-    "Could not parse message identifier",
-  );
 };

@@ -1,9 +1,10 @@
 import open from "open";
-import {CONFIGURATION, TWITCH_ENVIRONMENT} from "../environment.mts";
+import { CONFIGURATION, TWITCH_ENVIRONMENT } from "../environment.mts";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import EventEmitter from "events";
 import { Logger } from "../logging.mjs";
 import { once } from "node:events";
+import { randomUUID } from "node:crypto";
 
 const logger = Logger.child().withPrefix("[OIDC]");
 
@@ -14,10 +15,6 @@ export type TwitchOIDCEntity = {
   id: string;
   name: string;
   scope: string;
-};
-export type TwitchOIDCAuthenticateEvent = {
-  access: string;
-  refresh: string;
 };
 
 export class TwitchOIDC extends EventEmitter {
@@ -33,15 +30,15 @@ export class TwitchOIDC extends EventEmitter {
   }
 
   static state({ userId, scope }: { userId?: string; scope?: string }) {
-    const random = Math.random() * (Number.MAX_SAFE_INTEGER / 2);
-    return `${Math.floor(random).toString(36).substring(0, 9)}-${
-      userId ?? "unknown"
-    }-${scope ?? "unknown"}`;
+    const random = randomUUID().replace(/-/g, "");
+    return `${random.substring(0, 9)}-${userId ?? "unknown"}-${
+      scope ?? "unknown"
+    }`;
   }
 
   static nonce() {
-    const random = Math.random() * (Number.MAX_SAFE_INTEGER / 2);
-    return Math.floor(random).toString(36).substring(0, 15);
+    const random = randomUUID().replace(/-/g, "");
+    return random.substring(0, 16);
   }
 
   static load(oidc: TwitchOIDC) {
@@ -115,7 +112,8 @@ export class TwitchOIDC extends EventEmitter {
 
   async read() {
     try {
-      const file = readFileSync(TwitchOIDC.filepath(this.entity.kind), "utf8");
+      const filepath = TwitchOIDC.filepath(this.entity.kind);
+      const file = readFileSync(filepath, "utf8");
       const data = JSON.parse(file);
       this.accessToken = data.access_token;
       this.refreshToken = data.refresh_token;
@@ -128,7 +126,6 @@ export class TwitchOIDC extends EventEmitter {
   async authorize() {
     const userId = this.entity.id;
 
-
     const state = TwitchOIDC.state({ userId, scope: this.entity.scope });
     const nonce = TwitchOIDC.nonce();
     const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
@@ -139,14 +136,17 @@ export class TwitchOIDC extends EventEmitter {
       nonce,
       scope: this.entity.scope,
     })
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join("&")}`;
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join("&")}`;
 
-    if (CONFIGURATION.OIDC_AUTHORIZE_LINK !== undefined) {
+    const { OIDC_AUTHORIZE_LINK } = CONFIGURATION;
+    if (OIDC_AUTHORIZE_LINK !== undefined && OIDC_AUTHORIZE_LINK !== "false") {
       Logger.info(`Login to Twitch with the following link: ${url}`);
     } else {
       await open(url);
     }
+
+    return url;
   }
 
   static async validate({ accessToken }: { accessToken: string }) {
@@ -167,7 +167,7 @@ export class TwitchOIDC extends EventEmitter {
           type: "data" as const,
           data,
           message: `${data.login} with ${JSON.stringify(
-            data.scopes,
+            data.scopes
           )} scopes was successfully validated`,
         } as const;
       } else {
@@ -259,7 +259,7 @@ export class TwitchOIDC extends EventEmitter {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        },
+        }
       );
 
       const data = (await response.json()) as {
@@ -303,8 +303,8 @@ export class TwitchOIDC extends EventEmitter {
     access?: string;
   }) => {
     try {
-      this.accessToken = access || this.accessToken;
-      this.refreshToken = refresh || this.refreshToken;
+      this.accessToken = access ?? this.accessToken;
+      this.refreshToken = refresh ?? this.refreshToken;
 
       logger.info(`Writing Twitch OIDC data`);
 
@@ -325,14 +325,14 @@ export class TwitchOIDC extends EventEmitter {
             refresh_token: this.refreshToken,
           },
           null,
-          4,
-        ),
+          4
+        )
       );
 
       return {
         type: "data",
-        access,
-        refresh,
+        access_token: this.accessToken,
+        refresh_token: this.refreshToken,
         filepath,
       };
     } catch (e) {
@@ -346,7 +346,7 @@ export class TwitchOIDC extends EventEmitter {
   public onListen() {
     logger.info(`onListen`);
 
-    process.nextTick(async () => {
+    return new Promise(async () => {
       this.emit("listening");
       logger.debug(`onListen event`);
     });
@@ -355,7 +355,7 @@ export class TwitchOIDC extends EventEmitter {
   public onAuthenticate() {
     logger.info(`onAuthenticate`);
 
-    process.nextTick(() => {
+    return new Promise(() => {
       this.emit("authenticated", {
         access: this.accessToken,
         refresh: this.refreshToken,
