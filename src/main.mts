@@ -9,7 +9,7 @@ import {
 } from "./environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
-import { PluginInstance } from "./plugins/reducer.mjs";
+import { PluginInstance } from "./chat/PluginInstance.mjs";
 import { isMainThread, Worker } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 

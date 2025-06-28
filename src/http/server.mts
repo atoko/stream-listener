@@ -101,8 +101,18 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
       });
     }
 
+    if (
+        pathname === "/configuration" &&
+        (method === "POST" || method === "GET")
+    ) {
+      return await configure(res)({
+        method: method as "POST" | "GET",
+        readable: req,
+      });
+    }
+
     let filePath =
-      req.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, req.url || "");
+        req.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, req.url || "");
     const ext = extname(filePath);
 
     if (!filePath.startsWith(PUBLIC_DIR)) {
