@@ -3,12 +3,11 @@ import { TwitchOIDC } from "../twitch/oidc.mts";
 import { extname, join, dirname } from "path";
 import { readFile, stat } from "fs";
 import { authorize } from "./routes/authorize.mjs";
-import { PluginInstance } from "../plugins/reducer.mjs";
+import { PluginInstance } from "../chat/reducer.mjs";
 import { parsePath } from "ufo";
 import VError from "verror";
 import { URLSearchParams } from "node:url";
 import { Logger } from "../logging.mjs";
-import EventEmitter from "events";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
@@ -22,8 +21,7 @@ export type HttpServerOptions = {
 export function httpServer({ port, entities, plugin }: HttpServerOptions) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
-
-    const { pathname, search, hash } = parsePath(url.pathname);
+    const { pathname, search } = parsePath(url.pathname);
     const state = url.searchParams.get("state");
     const userId = state?.split("-")[1];
     const code = url.searchParams.get("code");
@@ -47,7 +45,7 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
                 url,
               },
             },
-            "Plugin path undefined",
+            "Plugin path undefined"
           );
         }
         return plugin;
@@ -68,7 +66,7 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
                     url,
                   },
                 },
-                "Search param 'reducer' is required",
+                "Search param 'reducer' is required"
               );
             })(),
         });

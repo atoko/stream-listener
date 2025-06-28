@@ -9,7 +9,7 @@ import {
 } from "./environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
-import { PluginInstance } from "./plugins/reducer.mjs";
+import { PluginInstance } from "./chat/reducer.mjs";
 import { isMainThread, Worker } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 
@@ -22,7 +22,7 @@ const oidc = {
       id: TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
       name: TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
       scope: "channel:manage:redemptions channel:read:redemptions",
-    }),
+    })
   ),
   bot: TwitchOIDC.load(
     new TwitchOIDC({
@@ -30,7 +30,7 @@ const oidc = {
       id: TWITCH_BOT.TWITCH_BOT_ID,
       name: TWITCH_BOT.TWITCH_BOT_NAME,
       scope: "chat:read chat:edit",
-    }),
+    })
   ),
 };
 
@@ -42,14 +42,13 @@ const http = httpServer({
 });
 
 const wss = websocketServer({ http });
-const irc = new TwitchIrcClient(oidc.bot);
-
+const irc = new TwitchIrcClient(oidc.bot, plugin);
 const caster = new TwitchCasterClient(oidc.caster, irc, wss);
 
 if (isMainThread) {
   logger.info("Waiting for caster authentication");
   http.listen();
-  oidc.caster.onListen();
+  await oidc.caster.onListen();
   logger.debug("Http server started. Emitted 'listening' event");
 
   let isWorkerStarted = false;

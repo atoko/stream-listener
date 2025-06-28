@@ -65,7 +65,7 @@ export const authorize =
 
                 return;
               }
-            }),
+            })
           );
 
           if (success) {
@@ -101,7 +101,7 @@ export const authorize =
                   nonce: TwitchOIDC.nonce(),
                 })
                   .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-                  .join("&"),
+                  .join("&")
               ),
             ].join("?");
 
@@ -134,7 +134,7 @@ export const authorize =
       } else {
         res.writeHead(400, { "Content-Type": "text/html" });
         return res.end(
-          "<h1>Missing authentication code</h1><p>Please try again.</p>",
+          "<h1>Missing authentication code</h1><p>Please try again.</p>"
         );
       }
     } else {
