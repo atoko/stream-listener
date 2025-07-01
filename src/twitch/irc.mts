@@ -2,10 +2,10 @@ import {
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
-} from "../environment.mts";
-import { TwitchOIDC } from "./oidc.mts";
-import VError from "verror";
+} from "../environment.mjs";
+import { TwitchOIDC } from "./oidc.mjs";
 import { Logger } from "../logging.mjs";
+import VError from "verror";
 
 const logger = Logger.child().withPrefix("[IRC]");
 
@@ -27,7 +27,7 @@ export class TwitchIrcClient {
 
   static isAuthenticationError(message: string) {
     return message.includes(
-      ":tmi.twitch.tv NOTICE * :Login authentication failed",
+      ":tmi.twitch.tv NOTICE * :Login authentication failed"
     );
   }
 
@@ -109,7 +109,7 @@ export class TwitchIrcClient {
           channel?: never;
           tell: string;
         }
-      | undefined,
+      | undefined
   ) {
     const { channel, tell } = receiver ?? {};
 
@@ -129,7 +129,7 @@ export class TwitchIrcClient {
       this.websocket.send(`PASS oauth:${this.oidc?.accessToken}`);
       this.websocket.send(`NICK ${TWITCH_BOT.TWITCH_BOT_NAME}`);
       this.websocket.send(
-        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`,
+        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`
       );
       logger.debug("WebSocket connection opened");
     } else {

@@ -23,7 +23,7 @@ export class TwitchCasterClient extends EventEmitter {
   constructor(
     private oidc: TwitchOIDC | null = null,
     public readonly irc: TwitchIrcClient,
-    private readonly server: ReturnType<typeof websocketServer>,
+    private readonly server: ReturnType<typeof websocketServer>
   ) {
     super();
   }
@@ -84,13 +84,13 @@ export class TwitchCasterClient extends EventEmitter {
                 textData,
               },
             },
-            textData,
+            textData
           );
         }
       }
 
       const data = JSON.parse(
-        event.data.toString(),
+        event.data.toString()
       ) as unknown as EventsubMessage;
 
       switch (data.metadata.message_type) {

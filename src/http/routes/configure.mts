@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { TWITCH_ENVIRONMENT } from "../../environment.mjs";
+import { EnvironmentSignals, TWITCH_ENVIRONMENT } from "../../environment.mjs";
 import { TwitchIrcClient } from "../../twitch/irc.mjs";
 import { TwitchCasterClient } from "../../twitch/caster.mjs";
 import VError from "verror";
@@ -69,13 +69,16 @@ export const configure =
   async ({
     readable,
     method,
+    environment,
   }: {
     readable: Readable;
     method: "POST" | "GET";
+    environment: EnvironmentSignals;
     caster?: TwitchCasterClient;
     irc?: TwitchIrcClient;
   }) => {
     switch (method) {
+      // @ts-ignore
       case "POST":
         const json = Promise.withResolvers<string>();
         const chunks: Array<string> = [];
@@ -96,7 +99,7 @@ export const configure =
           TWITCH_CLIENT_SECRET:
             result.clientSecret ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET,
         });
-      // @ts-ignore
+        environment.onConfigured();
       case "GET":
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`<h1>Configuration</h1>
@@ -105,24 +108,30 @@ export const configure =
             method="POST"
         >
             <h2>OIDC</h2>
-            <fieldset> 
-                <input 
-                    id="twitch_client_id" 
-                    type="text"
-                    value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}">
-                    <label>
-                        Client ID
-                    </label>
-                </input>            
-                <input 
-                    id="twitch_client_secret" 
-                    type="hidden"
-                    value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
-                    >
-                    <label>
-                        Client Secret
-                    </label>
-                </input>
+            <fieldset
+                class={["flex"].join(" ")}
+            > 
+                <div>
+                  <input 
+                      id="twitch_client_id" 
+                      type="text"
+                      value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}">
+                      <label>
+                          Client ID
+                      </label>
+                  </input>           
+                </div>
+                 <div>
+                  <input 
+                      id="twitch_client_secret" 
+                      type="password"
+                      value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
+                      >
+                      <label>
+                          Client Secret
+                      </label>
+                  </input>
+                </div>
             </fieldset>
             <button        
                 type="submit">
