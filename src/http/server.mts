@@ -9,6 +9,12 @@ import VError from "verror";
 import { URLSearchParams } from "node:url";
 import { Logger } from "../logging.mjs";
 import { configure } from "./routes/configure.mjs";
+import {
+  type EnvironmentSignals,
+  SERVER_CONFIGURATION,
+  SERVER_ENVIRONMENT,
+} from "../environment.mjs";
+import open from "open";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
@@ -17,9 +23,15 @@ export type HttpServerOptions = {
   port: number;
   entities: TwitchOIDC[];
   plugin: PluginInstance;
+  environment: EnvironmentSignals;
 };
 
-export function httpServer({ port, entities, plugin }: HttpServerOptions) {
+export function httpServer({
+  port,
+  entities,
+  plugin,
+  environment,
+}: HttpServerOptions) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const { method } = req;
@@ -47,7 +59,7 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
                 url,
               },
             },
-            "Plugin path undefined",
+            "Plugin path undefined"
           );
         }
         return plugin;
@@ -68,7 +80,7 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
                     url,
                   },
                 },
-                "Search param 'reducer' is required",
+                "Search param 'reducer' is required"
               );
             })(),
         });
@@ -101,18 +113,16 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
       });
     }
 
-    if (
-        pathname === "/configuration" &&
-        (method === "POST" || method === "GET")
-    ) {
+    if (pathname === "/configure" && (method === "POST" || method === "GET")) {
       return await configure(res)({
         method: method as "POST" | "GET",
         readable: req,
+        environment,
       });
     }
 
     let filePath =
-        req.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, req.url || "");
+      req.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, req.url || "");
     const ext = extname(filePath);
 
     if (!filePath.startsWith(PUBLIC_DIR)) {
@@ -157,8 +167,19 @@ export function httpServer({ port, entities, plugin }: HttpServerOptions) {
       server.listen(port ?? 3333, () => {
         Logger.withMetadata({
           port,
-        }).info(`[SERVER] HTTP server listening on port`);
+        }).info(`HTTP server listening`);
       });
+    },
+    configuration: {
+      open: async () => {
+        const url = SERVER_ENVIRONMENT.SERVER_CONFIGURATION_URL;
+        Logger.debug("Opening configuration");
+        if (SERVER_CONFIGURATION.isOidcHeadless()) {
+          Logger.info(`Please configure at the following link: ${url}`);
+        } else {
+          await open(url);
+        }
+      },
     },
   };
 }
