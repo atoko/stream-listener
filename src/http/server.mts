@@ -10,12 +10,11 @@ import { URLSearchParams } from "node:url";
 import { Logger } from "../logging.mjs";
 import { configure } from "./routes/configure.mjs";
 import {
-  type EnvironmentSignals,
   OidcConfiguration,
   SERVER_ENVIRONMENT,
 } from "../environment.mjs";
 import open from "open";
-import type { ConfigurationLoader } from "../configuration.mjs";
+import type { Container } from "../container.mjs";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
@@ -23,20 +22,12 @@ const INDEX_FILE = join(PUBLIC_DIR, "index.html");
 const logger = Logger.child().withPrefix("[SERVER]");
 
 export type HttpServerOptions = {
-  port: number;
   entities: TwitchOIDC[];
-  plugin: PluginInstance;
-  environment: EnvironmentSignals;
-  loader: ConfigurationLoader;
+  container: Container;
 };
 
-export function httpServer({
-  port,
-  entities,
-  plugin,
-  environment,
-  loader,
-}: HttpServerOptions) {
+export function httpServer({ entities, container }: HttpServerOptions) {
+  const { plugin, worker } = container;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const { method } = req;
@@ -109,7 +100,7 @@ export function httpServer({
       return;
     }
 
-    if (pathname === "/authorize") {
+    if (pathname === "/~oidc/authorize") {
       const scope = state?.split("-")[2];
 
       return await authorize(res)({
@@ -120,12 +111,14 @@ export function httpServer({
       });
     }
 
-    if (pathname === "/configure" && (method === "POST" || method === "GET")) {
+    if (
+      pathname === "/server/configure" &&
+      (method === "POST" || method === "GET")
+    ) {
       return await configure(res)({
         method: method as "POST" | "GET",
         readable: req,
-        environment,
-        loader,
+        ...container,
       });
     }
 
@@ -172,7 +165,8 @@ export function httpServer({
   return {
     server,
     listen: () => {
-      server.listen(port ?? 3333, () => {
+      const port = SERVER_ENVIRONMENT.SERVER_PORT;
+      server.listen(port, () => {
         logger
           .withMetadata({
             port,
@@ -191,10 +185,12 @@ export function httpServer({
     configuration: {
       open: async () => {
         const url = SERVER_ENVIRONMENT.SERVER_CONFIGURATION_URL;
-        logger.debug("Opening configuration");
-        if (OidcConfiguration.isOidcHeadless()) {
+        const { open: configurationOpened } = worker;
+
+        if (configurationOpened || OidcConfiguration.isOidcHeadless()) {
           logger.info(`Please configure at the following link: ${url}`);
         } else {
+          logger.debug("Opening configuration");
           await open(url);
         }
       },

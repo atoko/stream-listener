@@ -6,6 +6,7 @@ import VError from "verror";
 import type { Readable } from "node:stream";
 import { ConfigurationLoader } from "../../configuration.mjs";
 import { URLSearchParams } from "node:url";
+import type { WorkerContext } from "../../worker.mjs";
 
 type OidcConfigurationPost = {
   clientId?: string;
@@ -57,7 +58,7 @@ const isValidOidcConfigurationPost = (
   }
 
   try {
-    let params = new URLSearchParams(body);
+    let params = new URLSearchParams(decodeURI(body));
     const result = {
       clientId: params.get(OidcConfigurationName.clientId) ?? undefined,
       clientSecret: params.get(OidcConfigurationName.clientSecret) ?? undefined,
@@ -99,11 +100,13 @@ export const configure =
     method,
     environment,
     loader,
+    worker,
   }: {
     readable: Readable;
     method: "POST" | "GET";
     environment: EnvironmentSignals;
     loader: ConfigurationLoader;
+    worker: WorkerContext;
     caster?: TwitchCasterClient;
     irc?: TwitchIrcClient;
   }) => {
@@ -131,6 +134,9 @@ export const configure =
         });
 
         ConfigurationLoader.saveAll(loader);
+        worker.configuration = {
+          open: true,
+        };
       case "GET":
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`<h1>Configuration</h1>
@@ -144,7 +150,7 @@ export const configure =
             > 
                 <div>
                   <input 
-                      name={OidcConfigurationName.clientId} 
+                      name=${OidcConfigurationName.clientId}
                       type="text"
                       value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}"
                   >
@@ -155,7 +161,7 @@ export const configure =
                 </div>
                  <div>
                   <input 
-                    name={OidcConfigurationName.clientSecret} 
+                    name=${OidcConfigurationName.clientSecret}
                     type="password"
                     value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
                   >

@@ -16,7 +16,7 @@ const logger = Logger.child().withPrefix("[LOADER]");
 
 export class ConfigurationLoader extends EventEmitter {
   static filepath = (key: Configuration) => {
-    return `${process.cwd()}/data/${key}.json`;
+    return `${process.cwd()}/data/${key.toLowerCase()}.json`;
   };
 
   static loadAll(loader: ConfigurationLoader): ConfigurationLoader {
@@ -26,13 +26,13 @@ export class ConfigurationLoader extends EventEmitter {
       if (data) {
         switch (config) {
           case "BOT":
-            other = TWITCH_BROADCASTER;
+            other = TWITCH_BOT;
             break;
           case "CASTER":
-            other = TWITCH_ENVIRONMENT;
+            other = TWITCH_BROADCASTER;
             break;
           case "TWITCH":
-            other = TWITCH_BOT;
+            other = TWITCH_ENVIRONMENT;
             break;
           case "SERVER":
             other = SERVER_ENVIRONMENT;
@@ -57,13 +57,13 @@ export class ConfigurationLoader extends EventEmitter {
       let other: ConfigurationData | undefined;
       switch (config) {
         case "BOT":
-          other = TWITCH_BROADCASTER;
+          other = TWITCH_BOT;
           break;
         case "CASTER":
-          other = TWITCH_ENVIRONMENT;
+          other = TWITCH_BROADCASTER;
           break;
         case "TWITCH":
-          other = TWITCH_BOT;
+          other = TWITCH_ENVIRONMENT;
           break;
         case "SERVER":
           other = SERVER_ENVIRONMENT;
@@ -93,8 +93,7 @@ export class ConfigurationLoader extends EventEmitter {
     const filepath = ConfigurationLoader.filepath(key);
     try {
       const file = readFileSync(filepath, "utf8");
-      const data = JSON.parse(file);
-      return data;
+      return JSON.parse(file);
     } catch (e) {
       logger
         .withMetadata({
