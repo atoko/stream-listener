@@ -15,7 +15,7 @@ export const TWITCH_ENVIRONMENT = {
 } as const;
 
 export abstract class TwitchEnvironment {
-  static isClientSecretSet() {
+  static isClientSecretEmpty() {
     return TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET.trim() === "";
   }
 }
@@ -23,10 +23,11 @@ export abstract class TwitchEnvironment {
 export const SERVER_ENVIRONMENT = {
   SERVER_PORT: Number(env.SERVER_PORT ?? "3133"),
   SERVER_REDIRECT_URL:
-    env.SERVER_REDIRECT_URL || `http://localhost:${env.SERVER_PORT}/authorize`,
+    env.SERVER_REDIRECT_URL ||
+    `http://localhost:${env.SERVER_PORT}/~oidc/authorize`,
   SERVER_CONFIGURATION_URL:
     env.SERVER_CONFIGURATION_URL ||
-    `http://localhost:${env.SERVER_PORT}/configure`,
+    `http://localhost:${env.SERVER_PORT}/server/configure`,
 } as const;
 
 export const TWITCH_BROADCASTER = {

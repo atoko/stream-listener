@@ -4,7 +4,6 @@ import { websocketServer } from "./http/websockets.mts";
 import { TwitchCasterClient } from "./twitch/caster.mts";
 import {
   EnvironmentSignals,
-  SERVER_ENVIRONMENT,
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TwitchEnvironment,
@@ -12,30 +11,22 @@ import {
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
 import { PluginInstance } from "./chat/PluginInstance.mjs";
-import {
-  BroadcastChannel,
-  getEnvironmentData,
-  isMainThread,
-  setEnvironmentData,
-  Worker,
-} from "node:worker_threads";
+import { isMainThread, Worker } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 import { ConfigurationLoader } from "./configuration.mjs";
+import { ProcessSignals } from "./signals.mjs";
+import { WorkerContext } from "./worker.mjs";
+import { Container } from "./container.mjs";
 
 const logger = Logger.child().withPrefix("[MAIN]");
-class ProcessSignals {
-  exit: BroadcastChannel = new BroadcastChannel("exit");
-  constructor() {
-    this.exit.onmessage = async () => {
-      process.exit(1);
-    };
-  }
-}
 
-new ProcessSignals();
-const environment = new EnvironmentSignals();
-const plugin = new PluginInstance();
-const loader = new ConfigurationLoader();
+const container = new Container(
+  new WorkerContext(),
+  new ProcessSignals(),
+  new EnvironmentSignals(),
+  new PluginInstance(),
+  new ConfigurationLoader()
+);
 
 await (async () => {
   const oidc = {
@@ -57,33 +48,32 @@ await (async () => {
     ),
   };
   const http = httpServer({
-    port: SERVER_ENVIRONMENT.SERVER_PORT,
     entities: Object.values(oidc),
-    plugin,
-    environment,
-    loader,
+    container,
   });
+
   const wss = websocketServer({ http });
   const irc = new TwitchIrcClient(oidc.bot);
   const caster = new TwitchCasterClient(oidc.caster, irc, wss);
-  const context = getEnvironmentData("context");
+  const { thread } = container.worker;
 
-  once(loader, "save").then(() => {
+  once(container.loader, "save").then(() => {
     logger.debug("Closing http and wss");
     Promise.allSettled([http.close(), wss.close()]).then(() => {
-      setEnvironmentData("context", "main");
+      container.worker.thread = "main";
       new Worker(new URL(import.meta.url));
       logger.info("wss closed, new thread started");
     });
   });
 
-  if (isMainThread || context !== "worker") {
+  if (isMainThread || thread !== "worker") {
     logger.info("Waiting for caster authentication");
-    http.listen();
+    once(container.loader, "load").then(async () => {
+      logger.debug("Starting HTTP server");
+      http.listen();
 
-    once(loader, "load").then(async () => {
-      if (TwitchEnvironment.isClientSecretSet()) {
-        logger.info("Server configuration not found");
+      if (TwitchEnvironment.isClientSecretEmpty()) {
+        logger.warn("Client Secret is empty. Configure the server to proceed");
         await http.configuration.open();
         return;
       }
@@ -100,28 +90,35 @@ await (async () => {
 
         if (!isWorkerStarted) {
           logger.info("Starting worker thread");
-          setEnvironmentData("context", "worker");
+          container.worker.thread = "worker";
           new Worker(new URL(import.meta.url));
           isWorkerStarted = true;
           logger.debug("Worker thread started");
         }
       }
     });
-
-    ConfigurationLoader.loadAll(loader);
   } else {
     wss.withIrc(irc);
 
-    once(oidc.bot, "authenticated").then(async () => {
-      logger.info("Connecting irc");
-      irc.connect();
-      irc.subscribe();
-      logger.debug("irc subscribed");
-    });
-    logger.debug("Listening to authentication events");
+    once(container.loader, "load").then(async () => {
+      once(oidc.bot, "authenticated").then(async () => {
+        logger.info("Connecting irc");
+        irc.connect();
+        irc.subscribe();
+        logger.debug("irc subscribed");
+      });
 
-    logger.info("Waiting for bot authentication");
-    oidc.bot.onListen();
-    logger.debug("Emitted server ready");
+      logger.debug("Listening to authentication events");
+
+      logger.info("Waiting for bot authentication");
+      oidc.bot.onListen();
+      logger.debug("Emitted server ready");
+    });
   }
+
+  ConfigurationLoader.loadAll(container.loader);
 })();
+
+if (isMainThread) {
+  await container.signals.onExit;
+}
