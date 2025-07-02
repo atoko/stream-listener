@@ -17,7 +17,7 @@ export const subscribe = async (
         | "message_delete"
         | "notification"}`}`,
   version: "1",
-  session_id: string,
+  session_id: string
 ) => {
   try {
     const subEventURL = `${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_HTTP_URL}/eventsub/subscriptions`;

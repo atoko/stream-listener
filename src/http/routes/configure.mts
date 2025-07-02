@@ -4,15 +4,21 @@ import { TwitchIrcClient } from "../../twitch/irc.mjs";
 import { TwitchCasterClient } from "../../twitch/caster.mjs";
 import VError from "verror";
 import type { Readable } from "node:stream";
+import { ConfigurationLoader } from "../../configuration.mjs";
+import { URLSearchParams } from "node:url";
 
 type OidcConfigurationPost = {
   clientId?: string;
   clientSecret?: string;
 };
+const OidcConfigurationName: Record<keyof OidcConfigurationPost, string> = {
+  clientId: "twitch_client_id",
+  clientSecret: "twitch_client_secret",
+};
 
 const alphanumeric = new RegExp("^[a-zA-Z0-9_]*$");
 type PostValidation<Body extends {}> = {
-  result: Body;
+  result: Body | undefined;
   errors?: Array<[string, string | undefined]>; // message, Field, value
 };
 const isValidOidcConfigurationPost = (
@@ -42,23 +48,45 @@ const isValidOidcConfigurationPost = (
       "Invalid OidcConfigurationPost"
     );
   }
-  let result = JSON.parse(body) as OidcConfigurationPost;
-  const { clientId, clientSecret } = result;
-  const fieldset: Array<[string, string | undefined]> = [
-    ["Client ID", clientId],
-    ["Client Secret", clientSecret],
-  ] as const;
 
-  const errors = fieldset.filter(([label, value]) => {
-    return validations.filter(
-      (validation) => value !== "undefined" && validation(value)
+  if (body.trim() === "") {
+    return {
+      result: undefined,
+      errors: [],
+    };
+  }
+
+  try {
+    let params = new URLSearchParams(body);
+    const result = {
+      clientId: params.get(OidcConfigurationName.clientId) ?? undefined,
+      clientSecret: params.get(OidcConfigurationName.clientSecret) ?? undefined,
+    };
+    const { clientId, clientSecret } = result;
+
+    const fieldset: Array<[string, string | undefined]> = [
+      ["Client ID", clientId],
+      ["Client Secret", clientSecret],
+    ] as const;
+
+    const errors = fieldset.filter(([label, value]) => {
+      return validations.filter(
+        (validation) => value !== "undefined" && validation(value)
+      );
+    });
+
+    return {
+      result,
+      errors,
+    };
+  } catch (e) {
+    throw new VError(
+      {
+        info: { body },
+      },
+      "Error parsing configuration"
     );
-  });
-
-  return {
-    result,
-    errors,
-  };
+  }
 };
 
 /**
@@ -70,10 +98,12 @@ export const configure =
     readable,
     method,
     environment,
+    loader,
   }: {
     readable: Readable;
     method: "POST" | "GET";
     environment: EnvironmentSignals;
+    loader: ConfigurationLoader;
     caster?: TwitchCasterClient;
     irc?: TwitchIrcClient;
   }) => {
@@ -93,13 +123,14 @@ export const configure =
         });
 
         const { result } = isValidOidcConfigurationPost(await json.promise);
-        Object.assign(TWITCH_ENVIRONMENT, {
+        environment.onTwitchEnvironment({
           TWITCH_CLIENT_ID:
-            result.clientId ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
+            result?.clientId ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
           TWITCH_CLIENT_SECRET:
-            result.clientSecret ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET,
+            result?.clientSecret ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET,
         });
-        environment.onConfigured();
+
+        ConfigurationLoader.saveAll(loader);
       case "GET":
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`<h1>Configuration</h1>
@@ -113,9 +144,10 @@ export const configure =
             > 
                 <div>
                   <input 
-                      id="twitch_client_id" 
+                      name={OidcConfigurationName.clientId} 
                       type="text"
-                      value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}">
+                      value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}"
+                  >
                       <label>
                           Client ID
                       </label>
@@ -123,10 +155,10 @@ export const configure =
                 </div>
                  <div>
                   <input 
-                      id="twitch_client_secret" 
-                      type="password"
-                      value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
-                      >
+                    name={OidcConfigurationName.clientSecret} 
+                    type="password"
+                    value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
+                  >
                       <label>
                           Client Secret
                       </label>
@@ -134,7 +166,8 @@ export const configure =
                 </div>
             </fieldset>
             <button        
-                type="submit">
+              type="submit"
+            >
                     Save
             </button>
         </form>

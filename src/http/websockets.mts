@@ -20,7 +20,7 @@ export function websocketServer(props: WebSocketServerProps) {
 
     ws.on("message", (message) => {
       const command: LocksActionCommandMessage = JSON.parse(
-        message.toString(),
+        message.toString()
       ) as unknown as LocksActionCommandMessage;
       const outbox = chatReceiver(command);
       if (ircClient && Array.isArray(outbox)) {
@@ -31,6 +31,14 @@ export function websocketServer(props: WebSocketServerProps) {
 
   return {
     clients: () => wss.clients,
+    close: async () => {
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.close(1000);
+        }
+      });
+      wss.close();
+    },
     withIrc: (irc: TwitchIrcClient) => {
       ircClient = irc;
     },

@@ -7,7 +7,7 @@ export class PluginInstance {
     path: string,
     imports: {
       reducer: string;
-    },
+    }
   ) => {
     const imported = await import(path);
     const reducer = imported[imports.reducer ?? "default"];
@@ -20,7 +20,7 @@ export class PluginInstance {
             module,
           },
         },
-        `Module is not a function`,
+        `Module is not a function`
       );
     }
 
@@ -31,7 +31,7 @@ export class PluginInstance {
             path,
           },
         },
-        `Plugin reducer should be typed '(state, action) => state'`,
+        `Plugin reducer should be typed '(state, action) => state'`
       );
     }
 
@@ -41,7 +41,7 @@ export class PluginInstance {
         {
           info: { path },
         },
-        `Plugin reducer should not return a null/undefined value'`,
+        `Plugin reducer should not return a null/undefined value'`
       );
     }
 
