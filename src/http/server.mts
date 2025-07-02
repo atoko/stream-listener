@@ -9,10 +9,7 @@ import VError from "verror";
 import { URLSearchParams } from "node:url";
 import { Logger } from "../logging.mjs";
 import { configure } from "./routes/configure.mjs";
-import {
-  OidcConfiguration,
-  SERVER_ENVIRONMENT,
-} from "../environment.mjs";
+import { OidcConfiguration, SERVER_ENVIRONMENT } from "../environment.mjs";
 import open from "open";
 import type { Container } from "../container.mjs";
 
