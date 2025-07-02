@@ -8,10 +8,11 @@ export const TWITCH_ENVIRONMENT = {
     env.TWITCH_IRC_WEBSOCKET_URL || "wss://irc-ws.chat.twitch.tv:443",
   TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS:
     Number(env.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS) || 6000,
-  TWITCH_EVENTSUB_WEBSOCKET_URL: `wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=${
-    env.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_SECONDS || 60
-  }`,
-  TWITCH_EVENTSUB_HTTP_URL: `https://api.twitch.tv/helix`,
+  TWITCH_EVENTSUB_WEBSOCKET_URL:
+    `wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=${
+      env.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_SECONDS || 60
+    }` as string,
+  TWITCH_EVENTSUB_HTTP_URL: `https://api.twitch.tv/helix` as string,
 } as const;
 
 export abstract class TwitchEnvironment {
@@ -71,7 +72,27 @@ export class EnvironmentSignals extends EventEmitter {
       input.TWITCH_CLIENT_ID !== TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
     const clientSecret =
       input.TWITCH_CLIENT_SECRET !== TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET;
-    const changed = [clientId, clientSecret].some((change) => change);
+    const esHttpUrl =
+      input.TWITCH_EVENTSUB_HTTP_URL !==
+      TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_HTTP_URL;
+    const esWebSocketUrl =
+      input.TWITCH_EVENTSUB_WEBSOCKET_URL !==
+      TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_WEBSOCKET_URL;
+    const esKeepaliveMs =
+      input.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS !==
+      TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS;
+    const ircWebsocketUrl =
+      input.TWITCH_IRC_WEBSOCKET_URL !==
+      TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL;
+
+    const changed = [
+      clientId,
+      clientSecret,
+      esHttpUrl,
+      esWebSocketUrl,
+      esKeepaliveMs,
+      ircWebsocketUrl,
+    ].some((change) => change);
     if (changed) {
       Object.assign(TWITCH_ENVIRONMENT, input);
     }
