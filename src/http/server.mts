@@ -11,19 +11,23 @@ import { Logger } from "../logging.mjs";
 import { configure } from "./routes/configure.mjs";
 import {
   type EnvironmentSignals,
-  SERVER_CONFIGURATION,
+  OidcConfiguration,
   SERVER_ENVIRONMENT,
 } from "../environment.mjs";
 import open from "open";
+import type { ConfigurationLoader } from "../configuration.mjs";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
+
+const logger = Logger.child().withPrefix("[SERVER]");
 
 export type HttpServerOptions = {
   port: number;
   entities: TwitchOIDC[];
   plugin: PluginInstance;
   environment: EnvironmentSignals;
+  loader: ConfigurationLoader;
 };
 
 export function httpServer({
@@ -31,6 +35,7 @@ export function httpServer({
   entities,
   plugin,
   environment,
+  loader,
 }: HttpServerOptions) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
@@ -94,10 +99,12 @@ export function httpServer({
 
     // Authentication
     if (pathname === "/" && code) {
-      Logger.withMetadata({
-        userId,
-        code,
-      }).info(`[SERVER] Twitch authentication code received`);
+      logger
+        .withMetadata({
+          userId,
+          code,
+        })
+        .info(`[SERVER] Twitch authentication code received`);
 
       return;
     }
@@ -118,6 +125,7 @@ export function httpServer({
         method: method as "POST" | "GET",
         readable: req,
         environment,
+        loader,
       });
     }
 
@@ -165,17 +173,27 @@ export function httpServer({
     server,
     listen: () => {
       server.listen(port ?? 3333, () => {
-        Logger.withMetadata({
-          port,
-        }).info(`HTTP server listening`);
+        logger
+          .withMetadata({
+            port,
+          })
+          .info(`HTTP server listening`);
       });
+    },
+    close: async () => {
+      if (server.listening) {
+        server.closeAllConnections();
+        server.close();
+      } else {
+        throw new VError("HTTP server closed");
+      }
     },
     configuration: {
       open: async () => {
         const url = SERVER_ENVIRONMENT.SERVER_CONFIGURATION_URL;
-        Logger.debug("Opening configuration");
-        if (SERVER_CONFIGURATION.isOidcHeadless()) {
-          Logger.info(`Please configure at the following link: ${url}`);
+        logger.debug("Opening configuration");
+        if (OidcConfiguration.isOidcHeadless()) {
+          logger.info(`Please configure at the following link: ${url}`);
         } else {
           await open(url);
         }

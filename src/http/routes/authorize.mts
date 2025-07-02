@@ -1,5 +1,5 @@
 import { TwitchOIDC } from "../../twitch/oidc.mjs";
-import { TWITCH_ENVIRONMENT } from "../../environment.mjs";
+import { SERVER_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../../environment.mjs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Logger } from "../../logging.mjs";
 
@@ -24,7 +24,7 @@ export const authorize =
 
       const token = await TwitchOIDC.token({
         code,
-        redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
+        redirect_uri: SERVER_ENVIRONMENT.SERVER_REDIRECT_URL,
       });
 
       if (token.type === "data") {
@@ -65,7 +65,7 @@ export const authorize =
 
                 return;
               }
-            }),
+            })
           );
 
           if (success) {
@@ -93,7 +93,7 @@ export const authorize =
               encodeURIComponent(
                 Object.entries({
                   client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
-                  redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
+                  redirect_uri: SERVER_ENVIRONMENT.SERVER_REDIRECT_URL,
                   force_verify: true,
                   scope: scope ?? "",
                   response_type: "token",
@@ -101,7 +101,7 @@ export const authorize =
                   nonce: TwitchOIDC.nonce(),
                 })
                   .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-                  .join("&"),
+                  .join("&")
               ),
             ].join("?");
 
@@ -134,7 +134,7 @@ export const authorize =
       } else {
         res.writeHead(400, { "Content-Type": "text/html" });
         return res.end(
-          "<h1>Missing authentication code</h1><p>Please try again.</p>",
+          "<h1>Missing authentication code</h1><p>Please try again.</p>"
         );
       }
     } else {

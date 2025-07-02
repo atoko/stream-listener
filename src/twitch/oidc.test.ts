@@ -11,7 +11,7 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, mock } from "node:test";
-import { TWITCH_ENVIRONMENT } from "../environment.mts";
+import { SERVER_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../environment.mts";
 
 const mockedOpen = jest.fn();
 const mockedWriteFileSync = jest.fn();
@@ -104,7 +104,7 @@ describe("TwitchOIDC", () => {
 
   test("authorize", async () => {
     const client_id = TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
-    const redirect_uri = TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL;
+    const redirect_uri = SERVER_ENVIRONMENT.SERVER_REDIRECT_URL;
     const { oidc, state, nonce } = setup();
     await oidc.authorize();
 
@@ -156,7 +156,7 @@ describe("TwitchOIDC", () => {
         JSON.stringify({
           access_token,
           refresh_token,
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -182,7 +182,7 @@ describe("TwitchOIDC", () => {
         JSON.stringify({
           access_token,
           refresh_token,
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -223,7 +223,7 @@ describe("TwitchOIDC", () => {
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -269,7 +269,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 400,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -312,7 +312,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 405,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -355,7 +355,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 405,
           json: () => Promise.reject(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -394,7 +394,7 @@ describe("TwitchOIDC", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const data = {
@@ -409,7 +409,7 @@ describe("TwitchOIDC", () => {
           ok: true,
           status: 200,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -424,7 +424,7 @@ describe("TwitchOIDC", () => {
         type: "data" as const,
         data,
         message: `${data.login} with ${JSON.stringify(
-          data.scopes,
+          data.scopes
         )} scopes was successfully validated`,
       });
     });
@@ -440,7 +440,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 402,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -468,7 +468,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 404,
           json: () => Promise.resolve(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -496,7 +496,7 @@ describe("TwitchOIDC", () => {
           ok: false,
           status: 402,
           json: () => Promise.reject(data),
-        }),
+        })
       );
 
       const { oidc } = setup();
@@ -541,8 +541,8 @@ describe("TwitchOIDC", () => {
             refresh_token: oidc.refreshToken,
           },
           null,
-          4,
-        ),
+          4
+        )
       );
 
       expect(response).toMatchObject({
@@ -571,7 +571,7 @@ describe("TwitchOIDC", () => {
 
       expect(mockedWriteFileSync).toHaveBeenCalledWith(
         expect.stringContaining(tempfile),
-        expect.stringContaining(access_token),
+        expect.stringContaining(access_token)
       );
 
       expect(response).toMatchObject({

@@ -29,6 +29,6 @@ export const Logger = await Effect.runPromise(
         thread: `${isMainThread ? `Main` : `Worker`}`,
       });
     }),
-    Context.empty().pipe(withStructuredLogging({})),
-  ),
+    Context.empty().pipe(withStructuredLogging({}))
+  )
 );

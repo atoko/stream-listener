@@ -12,7 +12,13 @@ export const TWITCH_ENVIRONMENT = {
     env.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_SECONDS || 60
   }`,
   TWITCH_EVENTSUB_HTTP_URL: `https://api.twitch.tv/helix`,
-};
+} as const;
+
+export abstract class TwitchEnvironment {
+  static isClientSecretSet() {
+    return TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET.trim() === "";
+  }
+}
 
 export const SERVER_ENVIRONMENT = {
   SERVER_PORT: Number(env.SERVER_PORT ?? "3133"),
@@ -21,30 +27,64 @@ export const SERVER_ENVIRONMENT = {
   SERVER_CONFIGURATION_URL:
     env.SERVER_CONFIGURATION_URL ||
     `http://localhost:${env.SERVER_PORT}/configure`,
-};
+} as const;
 
 export const TWITCH_BROADCASTER = {
   TWITCH_BROADCASTER_ID: env.TWITCH_BROADCASTER_ID || "",
   TWITCH_BROADCASTER_NAME: env.TWITCH_BROADCASTER_NAME || "broadcaster",
-};
+} as const;
 
 export const TWITCH_BOT = {
   TWITCH_BOT_ID: env.TWITCH_BOT_ID || "twitch_bot",
   TWITCH_BOT_NAME: env.TWITCH_BOT_NAME || "twitch_bot",
-};
+} as const;
 
-export class SERVER_CONFIGURATION {
-  static OIDC_AUTHORIZE_LINK = env.OIDC_AUTHORIZE_LINK;
+export const OIDC_CONFIGURATION = {
+  OIDC_AUTHORIZE_LINK: env.OIDC_AUTHORIZE_LINK,
+};
+export abstract class OidcConfiguration {
   static isOidcHeadless = () => {
-    return this.OIDC_AUTHORIZE_LINK !== undefined;
+    return OIDC_CONFIGURATION.OIDC_AUTHORIZE_LINK !== undefined;
   };
 }
 
+export const CONFIGURATIONS = [
+  "TWITCH",
+  "CASTER",
+  "BOT",
+  "SERVER",
+  "OIDC",
+] as const;
+
+export type Configuration = (typeof CONFIGURATIONS)[number];
+export type ConfigurationData =
+  | typeof TWITCH_ENVIRONMENT
+  | typeof TWITCH_BROADCASTER
+  | typeof TWITCH_BOT
+  | typeof SERVER_ENVIRONMENT
+  | typeof OIDC_CONFIGURATION;
+
 export class EnvironmentSignals extends EventEmitter {
-  public onLoad() {
-    this.emit("load");
+  public onTwitchEnvironment(input: Partial<typeof TWITCH_ENVIRONMENT>) {
+    const clientId =
+      input.TWITCH_CLIENT_ID !== TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
+    const clientSecret =
+      input.TWITCH_CLIENT_SECRET !== TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET;
+    const changed = [clientId, clientSecret].some((change) => change);
+    if (changed) {
+      Object.assign(TWITCH_ENVIRONMENT, input);
+    }
   }
-  public onConfigured() {
-    this.emit("configured");
+
+  public onServerEnvironment(envs: Partial<typeof SERVER_ENVIRONMENT>) {
+    Object.assign(SERVER_ENVIRONMENT, envs);
+  }
+
+  public onBroadcasterEnvironment(envs: Partial<typeof TWITCH_BROADCASTER>) {
+    Object.assign(TWITCH_BROADCASTER, envs);
+  }
+
+  public onBotEnvironment(envs: typeof TWITCH_BROADCASTER) {
+    Object.assign(TWITCH_BOT, envs);
   }
 }

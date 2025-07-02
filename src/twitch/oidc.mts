@@ -1,5 +1,9 @@
 import open from "open";
-import {CONFIGURATION, TWITCH_ENVIRONMENT} from "../environment.mts";
+import {
+  OidcConfiguration,
+  SERVER_ENVIRONMENT,
+  TWITCH_ENVIRONMENT,
+} from "../environment.mts";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import EventEmitter from "events";
 import { Logger } from "../logging.mjs";
@@ -128,22 +132,21 @@ export class TwitchOIDC extends EventEmitter {
   async authorize() {
     const userId = this.entity.id;
 
-
     const state = TwitchOIDC.state({ userId, scope: this.entity.scope });
     const nonce = TwitchOIDC.nonce();
     const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
       client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
       response_type: "code",
-      redirect_uri: TWITCH_ENVIRONMENT.SERVER_REDIRECT_URL,
+      redirect_uri: SERVER_ENVIRONMENT.SERVER_REDIRECT_URL,
       state,
       nonce,
       scope: this.entity.scope,
     })
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join("&")}`;
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join("&")}`;
 
-    if (CONFIGURATION.OIDC_AUTHORIZE_LINK !== undefined) {
-      Logger.info(`Login to Twitch with the following link: ${url}`);
+    if (OidcConfiguration.isOidcHeadless()) {
+      logger.info(`Login to Twitch with the following link: ${url}`);
     } else {
       await open(url);
     }
@@ -167,7 +170,7 @@ export class TwitchOIDC extends EventEmitter {
           type: "data" as const,
           data,
           message: `${data.login} with ${JSON.stringify(
-            data.scopes,
+            data.scopes
           )} scopes was successfully validated`,
         } as const;
       } else {
@@ -259,7 +262,7 @@ export class TwitchOIDC extends EventEmitter {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        },
+        }
       );
 
       const data = (await response.json()) as {
@@ -325,8 +328,8 @@ export class TwitchOIDC extends EventEmitter {
             refresh_token: this.refreshToken,
           },
           null,
-          4,
-        ),
+          4
+        )
       );
 
       return {
