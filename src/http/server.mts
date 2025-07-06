@@ -8,15 +8,21 @@ import { parsePath } from "ufo";
 import VError from "verror";
 import { URLSearchParams } from "node:url";
 import { Logger } from "../logging.mjs";
-import { configure } from "./routes/configure.mjs";
-import { OidcConfiguration, SERVER_ENVIRONMENT } from "../environment.mjs";
+import { twitch } from "./routes/configure/twitch.mjs";
+import { OidcConfiguration, SERVICE_ENVIRONMENT } from "../environment.mjs";
 import open from "open";
 import type { Container } from "../container.mjs";
+import { service } from "./routes/configure/service.mjs";
+import { frontend } from "./routes/configure/index.mjs";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
 
 const logger = Logger.child().withPrefix("[SERVER]");
+
+export type Sec = {
+  fetchDest: "iframe" | "empty" | "script" | "worker";
+};
 
 export type HttpServerOptions = {
   entities: TwitchOIDC[];
@@ -25,9 +31,13 @@ export type HttpServerOptions = {
 
 export function httpServer({ entities, container }: HttpServerOptions) {
   const { plugin, worker } = container;
-  const server = createServer(async (req, res) => {
-    const url = new URL(req.url!, `http://${req.headers.host}`);
-    const { method } = req;
+  const server = createServer(async (readable, res) => {
+    const url = new URL(readable.url!, `http://${readable.headers.host}`);
+    const sec = {
+      fetchDest: readable.headers["sec-fetch-dest"] as Sec["fetchDest"],
+    };
+
+    const method = readable.method as "POST" | "GET";
     const { pathname, search } = parsePath(url.pathname);
     const state = url.searchParams.get("state");
     const userId = state?.split("-")[1];
@@ -97,7 +107,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       return;
     }
 
-    if (pathname === "/~oidc/authorize") {
+    if (pathname === "/oidc/authorize") {
       const scope = state?.split("-")[2];
 
       return await authorize(res)({
@@ -109,23 +119,41 @@ export function httpServer({ entities, container }: HttpServerOptions) {
     }
 
     if (
-      pathname === "/server/configure" &&
+      pathname.startsWith("/configure") &&
       (method === "POST" || method === "GET")
     ) {
-      return await configure(res)({
-        method: method as "POST" | "GET",
-        readable: req,
-        ...container,
-      });
+      const endpoint = pathname.split("/").at(2) ?? "";
+      switch (endpoint) {
+        case "twitch":
+          return await twitch(res)({
+            method,
+            readable,
+            sec,
+            ...container,
+          });
+        case "service":
+          return await service(res)({
+            method,
+            readable,
+            sec,
+            ...container,
+          });
+        default:
+          return frontend(res)({
+            endpoint,
+            method,
+            ...container,
+          });
+      }
     }
 
     let filePath =
-      req.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, req.url || "");
+      readable.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, readable.url || "");
     const ext = extname(filePath);
 
     if (!filePath.startsWith(PUBLIC_DIR)) {
       res.writeHead(403, { "Content-Type": "text/html" });
-      return res.end("<h1>403 Forbidden</h1>");
+      return res.end(`<h1>403 Forbidden</h1>`);
     }
 
     return stat(filePath, (err, stats) => {
@@ -162,13 +190,13 @@ export function httpServer({ entities, container }: HttpServerOptions) {
   return {
     server,
     listen: () => {
-      const port = SERVER_ENVIRONMENT.SERVER_PORT;
+      const port = SERVICE_ENVIRONMENT.SERVER_PORT;
       server.listen(port, () => {
         logger
           .withMetadata({
             port,
           })
-          .info(`HTTP server listening`);
+          .info("HTTP server listening");
       });
     },
     close: async () => {
@@ -181,7 +209,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
     },
     configuration: {
       open: async () => {
-        const url = SERVER_ENVIRONMENT.SERVER_CONFIGURATION_URL;
+        const url = SERVICE_ENVIRONMENT.SERVER_CONFIGURATION_URL;
         const { open: configurationOpened } = worker;
 
         if (configurationOpened || OidcConfiguration.isOidcHeadless()) {

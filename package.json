@@ -45,7 +45,7 @@
     "lint": "pnpm prettier src -w",
     "precommit": "syncpack format",
     "prepublishOnly": "publint --strict",
-    "start": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" node --env-file iac/.env ./module/main.mjs",
+    "start": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" node ./module/main.mjs",
     "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --inspect\" npx jest  --coverage --coverageProvider=v8 module/**/*.test.*"
   },
   "type": "module"

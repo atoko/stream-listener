@@ -1,7 +1,7 @@
 import open from "open";
 import {
   OidcConfiguration,
-  SERVER_ENVIRONMENT,
+  SERVICE_ENVIRONMENT,
   TWITCH_ENVIRONMENT,
 } from "../environment.mts";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
@@ -137,7 +137,7 @@ export class TwitchOIDC extends EventEmitter {
     const url = `https://id.twitch.tv/oauth2/authorize?${Object.entries({
       client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
       response_type: "code",
-      redirect_uri: SERVER_ENVIRONMENT.SERVER_REDIRECT_URL,
+      redirect_uri: SERVICE_ENVIRONMENT.SERVER_REDIRECT_URL,
       state,
       nonce,
       scope: this.entity.scope,

@@ -1,13 +1,16 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { EnvironmentSignals, TWITCH_ENVIRONMENT } from "../../environment.mjs";
-import { TwitchIrcClient } from "../../twitch/irc.mjs";
-import { TwitchCasterClient } from "../../twitch/caster.mjs";
+import {
+  EnvironmentSignals,
+  TWITCH_ENVIRONMENT,
+} from "../../../environment.mjs";
 import VError from "verror";
 import type { Readable } from "node:stream";
-import { ConfigurationLoader } from "../../configuration.mjs";
+import { ConfigurationLoader } from "../../../loader.mjs";
 import { URLSearchParams } from "node:url";
-import type { WorkerContext } from "../../worker.mjs";
+import type { WorkerContext } from "../../../worker.mjs";
 import { deserializeError } from "serialize-error";
+import { javascript } from "../../html.mjs";
+import type { Sec } from "../../server.mjs";
 
 type ConfigurationTwitchPost = {
   clientId?: string;
@@ -42,7 +45,7 @@ type PostValidation<Body extends {}> = {
   result: Body | undefined;
   errors?: Array<Readonly<[string, string | number | undefined]>>; // message, Field, value
 };
-const isValidOidcConfigurationPost = (
+const isValidTwitchConfigurationPost = (
   body: unknown
 ): PostValidation<ConfigurationTwitchPost> => {
   const alphanumeric = // Alphanumeric check
@@ -68,7 +71,7 @@ const isValidOidcConfigurationPost = (
       {
         info: { body },
       },
-      "Invalid OidcConfigurationPost"
+      "Invalid TwitchConfigurationPost"
     );
   }
 
@@ -155,22 +158,22 @@ const isValidOidcConfigurationPost = (
 /**
  *  Configuration page
  */
-export const configure =
+export const twitch =
   (res: ServerResponse<IncomingMessage>) =>
   async ({
     readable,
     method,
+    sec,
     environment,
     loader,
     worker,
   }: {
     readable: Readable;
     method: "POST" | "GET";
+    sec: Partial<Sec>;
     environment: EnvironmentSignals;
     loader: ConfigurationLoader;
     worker: WorkerContext;
-    caster?: TwitchCasterClient;
-    irc?: TwitchIrcClient;
   }) => {
     switch (method) {
       // @ts-ignore
@@ -187,7 +190,7 @@ export const configure =
           json.resolve(chunks.join(""));
         });
 
-        const { result } = isValidOidcConfigurationPost(await json.promise);
+        const { result } = isValidTwitchConfigurationPost(await json.promise);
         environment.onTwitchEnvironment({
           TWITCH_CLIENT_ID:
             result?.clientId ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
@@ -206,10 +209,25 @@ export const configure =
             TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL,
         });
 
-        ConfigurationLoader.saveAll(loader);
-        worker.configuration = {
-          open: true,
-        };
+        await ConfigurationLoader.saveAll(loader);
+
+        // Only reload the server if the request is from this configuration page
+        if (sec.fetchDest === "iframe") {
+          await loader.onSave();
+        } else {
+          // Otherwise, send a message to the configure page
+          await javascript(() => {
+            window.parent.postMessage(
+              JSON.stringify({
+                change: "configure_twitch",
+              })
+            );
+          })(res);
+
+          worker.configuration = {
+            open: true,
+          };
+        }
       case "GET":
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`<h1>Configuration</h1>
@@ -230,7 +248,7 @@ export const configure =
                       value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}"
                   >
                       <label>
-                          Client ID
+                          ${ConfigurationTwitchName.clientId}
                       </label>
                   </input>           
                 </div>
@@ -241,7 +259,7 @@ export const configure =
                     value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
                   >
                       <label>
-                          Client Secret
+                          ${ConfigurationTwitchName.clientSecret}
                       </label>
                   </input>
                 </div>    
@@ -255,7 +273,7 @@ export const configure =
                     value=${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_HTTP_URL}
                   >
                       <label>
-                          HTTP URL
+                          ${ConfigurationTwitchLabel.esHttpUrl}
                       </label>
                   </input>
                 </div>         
@@ -267,7 +285,7 @@ export const configure =
                     value=${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_WEBSOCKET_URL}
                   >
                       <label>
-                          Websocket URL
+                          ${ConfigurationTwitchLabel.esWebSocketUrl}
                       </label>
                   </input>
                 </div>
@@ -279,7 +297,7 @@ export const configure =
                     value=${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS}
                   >
                       <label>
-                          Keepalive Timeout (ms)
+                          ${ConfigurationTwitchLabel.esKeepaliveMs}
                       </label>
                   </input>
                 </div>         
@@ -292,6 +310,7 @@ export const configure =
                   >
                       <label>
                           IRC URL
+                          ${ConfigurationTwitchLabel.ircWebSocketUrl}
                       </label>
                   </input>
                 </div>                                               

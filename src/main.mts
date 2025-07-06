@@ -13,7 +13,7 @@ import { TwitchOIDC } from "./twitch/oidc.mts";
 import { PluginInstance } from "./chat/PluginInstance.mjs";
 import { isMainThread, Worker } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
-import { ConfigurationLoader } from "./configuration.mjs";
+import { ConfigurationLoader } from "./loader.mjs";
 import { ProcessSignals } from "./signals.mjs";
 import { WorkerContext } from "./worker.mjs";
 import { Container } from "./container.mjs";
