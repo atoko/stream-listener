@@ -3,7 +3,7 @@ import {
   type ConfigurationData,
   CONFIGURATIONS,
   OIDC_CONFIGURATION,
-  SERVER_ENVIRONMENT,
+  SERVICE_ENVIRONMENT,
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
@@ -34,17 +34,17 @@ export class ConfigurationLoader extends EventEmitter {
           case "TWITCH":
             other = TWITCH_ENVIRONMENT;
             break;
-          case "SERVER":
-            other = SERVER_ENVIRONMENT;
+          case "SERVICE":
+            other = SERVICE_ENVIRONMENT;
             break;
           case "OIDC":
             other = OIDC_CONFIGURATION;
             break;
         }
-      }
 
-      if (other) {
-        Object.assign(other, data);
+        if (other) {
+          Object.assign(other, data);
+        }
       }
     });
 
@@ -52,7 +52,7 @@ export class ConfigurationLoader extends EventEmitter {
     return loader;
   }
 
-  static saveAll(loader: ConfigurationLoader) {
+  static async saveAll(loader: ConfigurationLoader) {
     CONFIGURATIONS.map((config) => {
       let other: ConfigurationData | undefined;
       switch (config) {
@@ -65,8 +65,8 @@ export class ConfigurationLoader extends EventEmitter {
         case "TWITCH":
           other = TWITCH_ENVIRONMENT;
           break;
-        case "SERVER":
-          other = SERVER_ENVIRONMENT;
+        case "SERVICE":
+          other = SERVICE_ENVIRONMENT;
           break;
         case "OIDC":
           other = OIDC_CONFIGURATION;
@@ -77,7 +77,6 @@ export class ConfigurationLoader extends EventEmitter {
       }
     });
 
-    loader.onSave();
     return loader;
   }
 
@@ -85,7 +84,7 @@ export class ConfigurationLoader extends EventEmitter {
     this.emit("load");
   }
 
-  public onSave() {
+  public async onSave() {
     this.emit("save");
   }
 

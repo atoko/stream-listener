@@ -30,7 +30,7 @@
 // }) => {
 //   return {
 //     httpsServer: httpsServer
-//       ? jest.requireMock("http/server.mts")
+//       ? jest.requireMock("http/service.mts")
 //       : jest.requireActual("http/server"),
 //     wssServer: wssServer
 //       ? jest.requireMock("http/websockets.mts")

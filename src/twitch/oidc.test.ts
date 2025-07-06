@@ -11,7 +11,7 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, mock } from "node:test";
-import { SERVER_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../environment.mts";
+import { SERVICE_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../environment.mts";
 
 const mockedOpen = jest.fn();
 const mockedWriteFileSync = jest.fn();
@@ -104,7 +104,7 @@ describe("TwitchOIDC", () => {
 
   test("authorize", async () => {
     const client_id = TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;
-    const redirect_uri = SERVER_ENVIRONMENT.SERVER_REDIRECT_URL;
+    const redirect_uri = SERVICE_ENVIRONMENT.SERVER_REDIRECT_URL;
     const { oidc, state, nonce } = setup();
     await oidc.authorize();
 
