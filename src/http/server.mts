@@ -14,6 +14,8 @@ import open from "open";
 import type { Container } from "../container.mjs";
 import { service } from "./routes/configure/service.mjs";
 import { frontend } from "./routes/configure/index.mjs";
+import { broadcaster } from "./routes/configure/broadcaster.mjs";
+import { bot } from "./routes/configure/bot.mjs";
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
@@ -124,6 +126,13 @@ export function httpServer({ entities, container }: HttpServerOptions) {
     ) {
       const endpoint = pathname.split("/").at(2) ?? "";
       switch (endpoint) {
+        case "service":
+          return await service(res)({
+            method,
+            readable,
+            sec,
+            ...container,
+          });
         case "twitch":
           return await twitch(res)({
             method,
@@ -131,8 +140,15 @@ export function httpServer({ entities, container }: HttpServerOptions) {
             sec,
             ...container,
           });
-        case "service":
-          return await service(res)({
+        case "broadcaster":
+          return await broadcaster(res)({
+            method,
+            readable,
+            sec,
+            ...container,
+          });
+        case "bot":
+          return await bot(res)({
             method,
             readable,
             sec,

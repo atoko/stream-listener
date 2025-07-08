@@ -1,8 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
-  coalesce,
   EnvironmentSignals,
-  SERVICE_ENVIRONMENT,
+  TWITCH_BROADCASTER,
 } from "../../../environment.mjs";
 import VError from "verror";
 import type { Readable } from "node:stream";
@@ -13,39 +12,43 @@ import { deserializeError } from "serialize-error";
 import { javascript } from "../../html.mjs";
 import type { Sec } from "../../server.mjs";
 
-type ConfigurationServicePost = {
-  readonly serverPort?: number;
-  readonly serverListen?: string;
+type TwitchId = string;
+
+type ConfigurationBroadcasterPost = {
+  broadcasterId?: TwitchId;
+  broadcasterName?: string;
 };
 
-const ConfigurationServiceLabel: Record<
-  keyof ConfigurationServicePost,
+const ConfigurationBroadcasterHeadings = {
+  title: {
+    "#title": "Broadcaster",
+  },
+} as const;
+
+const ConfigurationBroadcasterLabel: Record<
+  keyof ConfigurationBroadcasterPost,
   string
 > = {
-  serverPort: "Server port",
-  serverListen: "Server listen address",
+  broadcasterId: "Broadcaster ID",
+  broadcasterName: "Broadcaster Name",
 };
 
-const ConfigurationServiceAside: Partial<
-  Record<keyof ConfigurationServicePost, Array<string>>
+const ConfigurationBroadcasterName: Record<
+  keyof ConfigurationBroadcasterPost,
+  string
 > = {
-  serverListen: ["Defaults to localhost"],
+  broadcasterId: "twitch_broadcaster_id",
+  broadcasterName: "twitch_broadcaster_name",
 };
-
-const ConfigurationServiceName: Record<keyof ConfigurationServicePost, string> =
-  {
-    serverPort: "server_port",
-    serverListen: "server_listen",
-  };
 
 const regexp = { alphanumeric: new RegExp("^[a-zA-Z0-9_]*$") };
 type PostValidation<Body extends {}> = {
   result: Body | undefined;
   errors?: Array<Readonly<[string, string | number | undefined]>>; // message, Field, value
 };
-const isValidServerConfigurationPost = (
+const isValidBroadcasterConfigurationPost = (
   body: unknown
-): PostValidation<ConfigurationServicePost> => {
+): PostValidation<ConfigurationBroadcasterPost> => {
   const alphanumeric = // Alphanumeric check
     (s: string | undefined, optional: boolean = true) => {
       if (optional) {
@@ -64,7 +67,7 @@ const isValidServerConfigurationPost = (
       {
         info: { body },
       },
-      "Invalid ServerConfigurationPost"
+      "Invalid BroadcasterConfigurationPost"
     );
   }
 
@@ -78,12 +81,12 @@ const isValidServerConfigurationPost = (
   try {
     let params = new URLSearchParams(decodeURI(body));
     const result = {
-      serverPort:
-        Number(params.get(ConfigurationServiceName.serverPort)) ?? undefined,
-      serverListen:
-        params.get(ConfigurationServiceName.serverListen) ?? undefined,
-    } as const;
-    const { serverPort, serverListen } = result;
+      broadcasterId:
+        params.get(ConfigurationBroadcasterName.broadcasterId) ?? undefined,
+      broadcasterName:
+        params.get(ConfigurationBroadcasterName.broadcasterName) ?? undefined,
+    };
+    const { broadcasterId, broadcasterName } = result;
 
     const fieldset: Array<
       [
@@ -92,16 +95,20 @@ const isValidServerConfigurationPost = (
         Array<(s: any | undefined) => boolean>
       ]
     > = [
-      [ConfigurationServiceName.serverPort, serverPort, [alphanumeric, length]],
       [
-        ConfigurationServiceName.serverListen,
-        serverListen,
+        ConfigurationBroadcasterLabel.broadcasterId,
+        broadcasterId,
+        [alphanumeric, length],
+      ],
+      [
+        ConfigurationBroadcasterLabel.broadcasterName,
+        broadcasterName,
         [alphanumeric, length],
       ],
     ] as const;
 
     const errors = fieldset
-      .filter(([label, value, validations]) => {
+      .filter(([_, value, validations]) => {
         return validations.filter(
           (validation) => value !== undefined && validation(value)
         );
@@ -115,10 +122,7 @@ const isValidServerConfigurationPost = (
   } catch (e) {
     throw new VError(
       {
-        info: {
-          body,
-          configure: "server",
-        },
+        info: { body },
         cause: deserializeError(e),
       },
       "Error parsing configuration"
@@ -127,9 +131,9 @@ const isValidServerConfigurationPost = (
 };
 
 /**
- *  Configuration page - Service
+ *  Configuration page
  */
-export const service =
+export const broadcaster =
   (res: ServerResponse<IncomingMessage>) =>
   async ({
     readable,
@@ -146,8 +150,6 @@ export const service =
     loader: ConfigurationLoader;
     worker: WorkerContext;
   }) => {
-    res.writeHead(200, { "Content-Type": "text/html" });
-
     switch (method) {
       // @ts-ignore
       case "POST":
@@ -163,28 +165,28 @@ export const service =
           json.resolve(chunks.join(""));
         });
 
-        const { result } = isValidServerConfigurationPost(await json.promise);
-        const SERVER_URL = `${coalesce(
-          result?.serverListen,
-          "localhost"
-        )}:${coalesce(
-          String(result?.serverPort),
-          String(SERVICE_ENVIRONMENT.SERVER_PORT)
-        )}`;
-
-        environment.onServiceEnvironment({
-          SERVER_URL,
+        const { result } = isValidBroadcasterConfigurationPost(
+          await json.promise
+        );
+        environment.onBroadcasterEnvironment({
+          TWITCH_BROADCASTER_NAME:
+            result?.broadcasterId ?? TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
+          TWITCH_BROADCASTER_ID:
+            result?.broadcasterName ??
+            TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
         });
+
         await ConfigurationLoader.saveAll(loader);
+
         // Only reload the server if the request is from this configuration page
-        if (sec.fetchDest !== "iframe") {
+        if (sec.fetchDest === "iframe") {
           await loader.onSave();
         } else {
           // Otherwise, send a message to the configure page
           await javascript(() => {
             window.parent.postMessage(
               JSON.stringify({
-                change: "configure_service",
+                change: "configure_broadcaster",
               })
             );
           })(res);
@@ -194,46 +196,42 @@ export const service =
           };
         }
       case "GET":
+        res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`
     <div>
         <form
             method="POST"
             autocomplete="off"
         >
-            <h2>Service</h2>
-            <fieldset> 
-                <h3>HTTP</h3>
-                <div>
+            <fieldset
+                class={["flex"].join(" ")}
+            > 
+                      <h2
+                      id={Object.keys(ConfigurationBroadcasterHeadings)[0]}
+                  >${ConfigurationBroadcasterHeadings.title["#title"]}</h2>
+                  <div>
                       <label>
-                          ${ConfigurationServiceLabel.serverPort}
-                      <input 
-                          type="text"
-                          name=${ConfigurationServiceName.serverPort}
-                          value="${SERVICE_ENVIRONMENT.SERVER_PORT}"
-                      />
-                      </label>
-
+                          ${ConfigurationBroadcasterLabel.broadcasterId}
+                  <input 
+                      type="text"
+                      name=${ConfigurationBroadcasterName.broadcasterId}
+                      value="${TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID}"
+                  >
                   </input>           
+                      </label>
                 </div>
                  <div>
                       <label>
-                          ${ConfigurationServiceLabel.serverListen}
-                                            <input 
+                          ${ConfigurationBroadcasterLabel.broadcasterName}
+                  <input 
                     type="text"
-                    name=${ConfigurationServiceName.serverListen}
-                    value=${
-                      new URL(SERVICE_ENVIRONMENT.SERVER_REDIRECT_URL).hostname
-                    }
-                  >
-                      <span
-                      >
-                          ${ConfigurationServiceAside.serverListen}
-                      </span>
+                    name=${ConfigurationBroadcasterName.broadcasterName}
+                    value=${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}
+                  />
                   </input>
-
                       </label>
-                 
                 </div>    
+            </fieldset>             
             </fieldset>
             <button        
               type="submit"
