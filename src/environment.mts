@@ -21,8 +21,10 @@ export abstract class TwitchEnvironment {
   }
 }
 
-export const SERVER_ENVIRONMENT = {
-  SERVER_PORT: Number(env.SERVER_PORT ?? "3133"),
+export const SERVICE_ENVIRONMENT = {
+  SERVER_PORT: Number(
+    process.env.SERVER_PORT === "" ? "3133" : env.SERVER_PORT ?? "3133"
+  ),
   SERVER_REDIRECT_URL:
     env.SERVER_REDIRECT_URL ||
     `http://localhost:${env.SERVER_PORT}/~oidc/authorize`,
@@ -37,7 +39,7 @@ export const TWITCH_BROADCASTER = {
 } as const;
 
 export const TWITCH_BOT = {
-  TWITCH_BOT_ID: env.TWITCH_BOT_ID || "twitch_bot",
+  TWITCH_BOT_ID: env.TWITCH_BOT_ID || "",
   TWITCH_BOT_NAME: env.TWITCH_BOT_NAME || "twitch_bot",
 } as const;
 
@@ -54,7 +56,7 @@ export const CONFIGURATIONS = [
   "TWITCH",
   "CASTER",
   "BOT",
-  "SERVER",
+  "SERVICE",
   "OIDC",
 ] as const;
 
@@ -63,8 +65,15 @@ export type ConfigurationData =
   | typeof TWITCH_ENVIRONMENT
   | typeof TWITCH_BROADCASTER
   | typeof TWITCH_BOT
-  | typeof SERVER_ENVIRONMENT
+  | typeof SERVICE_ENVIRONMENT
   | typeof OIDC_CONFIGURATION;
+
+export const coalesce = (varchar: string | null | undefined, value: string) => {
+  if (!varchar || varchar.trim().length === 0) {
+    return value;
+  }
+  return varchar;
+};
 
 export class EnvironmentSignals extends EventEmitter {
   public onTwitchEnvironment(input: Partial<typeof TWITCH_ENVIRONMENT>) {
@@ -97,16 +106,35 @@ export class EnvironmentSignals extends EventEmitter {
       Object.assign(TWITCH_ENVIRONMENT, input);
     }
   }
+  public onServiceEnvironment(input: { SERVER_URL: string | undefined }) {
+    const serverUrl = `http://${coalesce(input.SERVER_URL, "localhost:3133")}`;
+    const redirectUrl =
+      SERVICE_ENVIRONMENT.SERVER_REDIRECT_URL !== `${serverUrl}/oidc/authorize`
+        ? `${serverUrl}/oidc/authorize`
+        : SERVICE_ENVIRONMENT.SERVER_REDIRECT_URL;
+    const configurationUrl =
+      SERVICE_ENVIRONMENT.SERVER_CONFIGURATION_URL !== `${serverUrl}/configure`
+        ? `${serverUrl}/configure`
+        : SERVICE_ENVIRONMENT.SERVER_CONFIGURATION_URL;
 
-  public onServerEnvironment(envs: Partial<typeof SERVER_ENVIRONMENT>) {
-    Object.assign(SERVER_ENVIRONMENT, envs);
+    Object.assign(SERVICE_ENVIRONMENT, {
+      SERVER_PORT: new URL(serverUrl).port,
+      SERVER_REDIRECT_URL: redirectUrl,
+      SERVER_CONFIGURE_URL: configurationUrl,
+    });
   }
 
-  public onBroadcasterEnvironment(envs: Partial<typeof TWITCH_BROADCASTER>) {
-    Object.assign(TWITCH_BROADCASTER, envs);
+  public onBroadcasterEnvironment(input: Partial<typeof TWITCH_BROADCASTER>) {
+    Object.assign(TWITCH_BROADCASTER, {
+      TWITCH_BROADCASTER_ID: input.TWITCH_BROADCASTER_ID,
+      TWITCH_BROADCASTER_NAME: input.TWITCH_BROADCASTER_NAME,
+    });
   }
 
-  public onBotEnvironment(envs: typeof TWITCH_BROADCASTER) {
-    Object.assign(TWITCH_BOT, envs);
+  public onBotEnvironment(input: Partial<typeof TWITCH_BOT>) {
+    Object.assign(TWITCH_BOT, {
+      TWITCH_BOT_ID: input.TWITCH_BOT_ID,
+      TWITCH_BOT_NAME: input.TWITCH_BOT_NAME,
+    });
   }
 }

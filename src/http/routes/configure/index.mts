@@ -32,7 +32,6 @@ export const frontend =
         // @ts-ignore Fallthrough case in switch
         case "POST":
           await loader.onSave();
-          break;
         case "GET":
           res.writeHead(200, { "Content-Type": "text/html" });
           await javascript(() => {
@@ -55,14 +54,27 @@ export const frontend =
             "#restart_button": ConfigurePageIds.restartButton,
           });
           return res.end(`
+      <section>
+      <iframe
+        name="configure_service" 
+        src="/configure/service" 
+      ></iframe>          
+    </section>
+    <section>
       <iframe 
         name="configure_twitch"
         src="/configure/twitch" 
       ></iframe>
       <iframe
-        name="configure_service" 
-        src="/configure/service" 
-      ></iframe>        
+        name="configure_broadcaster" 
+        src="/configure/broadcaster" 
+      ></iframe>
+      <iframe
+        name="configure_broadcaster" 
+        src="/configure/bot" 
+      ></iframe>                   
+</section>
+
     <form
     >
       <button

@@ -230,7 +230,7 @@ export const twitch =
         }
       case "GET":
         res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`<h1>Configuration</h1>
+        res.end(`
     <div>
         <form
             method="POST"
@@ -242,24 +242,24 @@ export const twitch =
             > 
                 <h3>Client</h3>
                 <div>
+                      <label>
+                          ${ConfigurationTwitchLabel.clientId}
                   <input 
                       type="text"
                       name=${ConfigurationTwitchName.clientId}
                       value="${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}"
                   >
-                      <label>
-                          ${ConfigurationTwitchName.clientId}
                       </label>
                   </input>           
                 </div>
                  <div>
+                      <label>
+                          ${ConfigurationTwitchLabel.clientSecret}
                   <input 
                     type="password"
                     name=${ConfigurationTwitchName.clientSecret}
                     value=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}
                   >
-                      <label>
-                          ${ConfigurationTwitchName.clientSecret}
                       </label>
                   </input>
                 </div>    
@@ -267,50 +267,49 @@ export const twitch =
             <fieldset>
                  <h3>Eventsub</h3>
                  <div>
+                      <label>
+                          ${ConfigurationTwitchLabel.esHttpUrl}
                   <input 
                     type="text"
                     name=${ConfigurationTwitchName.esHttpUrl}
                     value=${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_HTTP_URL}
                   >
-                      <label>
-                          ${ConfigurationTwitchLabel.esHttpUrl}
                       </label>
                   </input>
                 </div>         
                 
                  <div>
+                      <label>
+                          ${ConfigurationTwitchLabel.esWebSocketUrl}
                   <input 
                     type="text"
                     name=${ConfigurationTwitchName.esWebSocketUrl}
                     value=${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_WEBSOCKET_URL}
                   >
-                      <label>
-                          ${ConfigurationTwitchLabel.esWebSocketUrl}
                       </label>
                   </input>
                 </div>
 
                  <div>
+                      <label>
+                          ${ConfigurationTwitchLabel.esKeepaliveMs}
                   <input 
                     type="number"
                     name=${ConfigurationTwitchName.esKeepaliveMs}
                     value=${TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS}
                   >
-                      <label>
-                          ${ConfigurationTwitchLabel.esKeepaliveMs}
                       </label>
                   </input>
                 </div>         
                 
                  <div>
+                      <label>
+                          ${ConfigurationTwitchLabel.ircWebSocketUrl}
                   <input 
                     type="text"
                     name=${ConfigurationTwitchName.ircWebSocketUrl}
                     value=${TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL}
                   >
-                      <label>
-                          IRC URL
-                          ${ConfigurationTwitchLabel.ircWebSocketUrl}
                       </label>
                   </input>
                 </div>                                               
