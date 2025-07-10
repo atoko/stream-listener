@@ -6,6 +6,9 @@ import {
   withStructuredLogging,
 } from "@levicape/loglayer-effect";
 import { isMainThread } from "node:worker_threads";
+import { WorkerContext } from "./worker.mjs";
+
+const context = new WorkerContext();
 
 export const Logger = await Effect.runPromise(
   Effect.provide(
@@ -18,6 +21,8 @@ export const Logger = await Effect.runPromise(
             if (data) {
               delete data.rootId;
               delete data.loggerId;
+              (data as unknown as Record<"thread", string>).thread =
+                context.thread;
             }
 
             return data;
