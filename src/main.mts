@@ -18,6 +18,10 @@ import { ProcessSignals } from "./signals.mjs";
 import { WorkerContext } from "./worker.mjs";
 import { Container } from "./container.mjs";
 
+if (isMainThread) {
+  new WorkerContext().thread = "main";
+}
+
 const logger = Logger.child().withPrefix("[MAIN]");
 
 const container = new Container(
@@ -74,7 +78,10 @@ await (async () => {
 
       if (TwitchEnvironment.isClientSecretEmpty()) {
         logger.warn("Client Secret is empty. Configure the server to proceed");
-        await http.configuration.open();
+
+        await http.configuration.open(`
+          \n Press enter to open configuration, any other key to exit
+        `);
         return;
       }
 

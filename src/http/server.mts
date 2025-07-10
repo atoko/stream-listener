@@ -16,6 +16,13 @@ import { service } from "./routes/configure/service.mjs";
 import { frontend } from "./routes/configure/index.mjs";
 import { broadcaster } from "./routes/configure/broadcaster.mjs";
 import { bot } from "./routes/configure/bot.mjs";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+
+const rl = createInterface({
+  input,
+  output,
+});
 
 const PUBLIC_DIR = join(dirname(import.meta.url), "..", "..", "public");
 const INDEX_FILE = join(PUBLIC_DIR, "index.html");
@@ -224,7 +231,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       }
     },
     configuration: {
-      open: async () => {
+      open: async (prompt: string) => {
         const url = SERVICE_ENVIRONMENT.SERVER_CONFIGURATION_URL;
         const { open: configurationOpened } = worker;
 
@@ -232,7 +239,16 @@ export function httpServer({ entities, container }: HttpServerOptions) {
           logger.info(`Please configure at the following link: ${url}`);
         } else {
           logger.debug("Opening configuration");
-          await open(url);
+          await new Promise((resolve) => {
+            setTimeout(resolve, 2000);
+          });
+
+          const response = await rl.question(prompt);
+          if (response.trim() === "") {
+            await open(url);
+          } else {
+            throw new Error("Press enter to proceed");
+          }
         }
       },
     },
