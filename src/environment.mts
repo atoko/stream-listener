@@ -1,5 +1,4 @@
 import { env } from "node:process";
-import EventEmitter from "events";
 
 export const TWITCH_ENVIRONMENT = {
   TWITCH_CLIENT_ID: env.TWITCH_CLIENT_ID || "",
@@ -75,7 +74,7 @@ export const coalesce = (varchar: string | null | undefined, value: string) => {
   return varchar;
 };
 
-export class EnvironmentSignals extends EventEmitter {
+export class EnvironmentSignals {
   public onTwitchEnvironment(input: Partial<typeof TWITCH_ENVIRONMENT>) {
     const clientId =
       input.TWITCH_CLIENT_ID !== TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID;

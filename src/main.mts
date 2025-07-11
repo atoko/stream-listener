@@ -63,14 +63,27 @@ await (async () => {
 
   once(container.loader, "save").then(() => {
     logger.debug("Closing http and wss");
-    Promise.allSettled([http.close(), wss.close()]).then(() => {
+    Promise.allSettled([
+      http.close(),
+      wss.close(),
+      async () => {
+        Object.values(oidc).forEach((oidc) => {
+          oidc.close("authenticated");
+          oidc.close("listening");
+        });
+      },
+      async () => {
+        container.loader.close("load");
+        container.loader.close("save");
+      },
+    ]).then(() => {
       container.worker.thread = "main";
       new Worker(new URL(import.meta.url));
       logger.info("wss closed, new thread started");
     });
   });
 
-  if (isMainThread || thread !== "worker") {
+  if (thread.startsWith(`main`)) {
     logger.info("Waiting for caster authentication");
     once(container.loader, "load").then(async () => {
       logger.debug("Starting HTTP server");

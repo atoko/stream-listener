@@ -88,6 +88,10 @@ export class ConfigurationLoader extends EventEmitter {
     this.emit("save");
   }
 
+  public close(listener: "load" | "save") {
+    this.removeAllListeners(listener);
+  }
+
   public load(key: Configuration) {
     const filepath = ConfigurationLoader.filepath(key);
     try {

@@ -367,4 +367,8 @@ export class TwitchOIDC extends EventEmitter {
       logger.debug(`onAuthenticate event`);
     });
   }
+
+  public close(listener: "listening" | "authenticated") {
+    this.removeAllListeners(listener);
+  }
 }
