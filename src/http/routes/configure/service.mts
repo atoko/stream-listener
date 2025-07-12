@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   coalesce,
-  EnvironmentSignals,
+  ConfigurationEvents,
   SERVICE_ENVIRONMENT,
 } from "../../../environment.mjs";
 import VError from "verror";
@@ -135,14 +135,14 @@ export const service =
     readable,
     method,
     sec,
-    environment,
+    configuration,
     loader,
     worker,
   }: {
     readable: Readable;
     method: "POST" | "GET";
     sec: Partial<Sec>;
-    environment: EnvironmentSignals;
+    configuration: ConfigurationEvents;
     loader: ConfigurationLoader;
     worker: WorkerContext;
   }) => {
@@ -172,13 +172,13 @@ export const service =
           String(SERVICE_ENVIRONMENT.SERVER_PORT)
         )}`;
 
-        environment.onServiceEnvironment({
+        configuration.onServiceEnvironment({
           SERVER_URL,
         });
         await ConfigurationLoader.saveAll(loader);
         // Only reload the server if the request is from this configuration page
         if (sec.fetchDest !== "iframe") {
-          await loader.onSave();
+          await loader.onSave(worker);
         } else {
           // Otherwise, send a message to the configure page
           await javascript(() => {

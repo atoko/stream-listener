@@ -1,8 +1,31 @@
-import { getEnvironmentData, setEnvironmentData } from "node:worker_threads";
+import {
+  getEnvironmentData,
+  setEnvironmentData,
+  Worker,
+} from "node:worker_threads";
 
 export class WorkerContext {
+  public workers: Array<Worker> = [];
+
+  fork(scriptURL: string | URL, kind: "main" | "worker") {
+    const current = this.thread;
+    this.thread = kind;
+    const worker = new Worker(scriptURL);
+    this.workers.push(worker);
+    worker.on("exit", (w) => {
+      this.workers = this.workers.filter(({ threadId }) => {
+        return threadId !== worker.threadId;
+      });
+    });
+
+    if (current.startsWith("main")) {
+      this.ordinal -= 1;
+    }
+    this.thread = current.split("-")[0] as "main" | "worker";
+  }
+
   private get ordinal(): number {
-    return Number(getEnvironmentData("ordinal") ?? 1);
+    return Number(getEnvironmentData("ordinal") ?? 0);
   }
 
   private set ordinal(to: number) {

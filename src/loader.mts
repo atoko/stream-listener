@@ -11,15 +11,23 @@ import {
 import EventEmitter from "events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Logger } from "./logging.mjs";
+import type { WorkerContext } from "./worker.mjs";
 
 const logger = Logger.child().withPrefix("[LOADER]");
+
+export type ConfigurationLoaderMessage = {
+  ConfigurationLoader: "save";
+};
 
 export class ConfigurationLoader extends EventEmitter {
   static filepath = (key: Configuration) => {
     return `${process.cwd()}/data/${key.toLowerCase()}.json`;
   };
 
-  static loadAll(loader: ConfigurationLoader): ConfigurationLoader {
+  static loadAll(
+    loader: ConfigurationLoader,
+    worker: WorkerContext
+  ): ConfigurationLoader {
     CONFIGURATIONS.map((config) => {
       const data = loader.load(config);
       let other: Object | undefined;
@@ -48,7 +56,7 @@ export class ConfigurationLoader extends EventEmitter {
       }
     });
 
-    loader.onLoad();
+    loader.onLoad(worker);
     return loader;
   }
 
@@ -80,12 +88,23 @@ export class ConfigurationLoader extends EventEmitter {
     return loader;
   }
 
-  public onLoad() {
+  public onLoad({ workers }: WorkerContext) {
     this.emit("load");
   }
 
-  public async onSave() {
-    this.emit("save");
+  public async onSave({ workers }: WorkerContext) {
+    workers.forEach((worker) => {
+      worker.postMessage({
+        ConfigurationLoader: "save",
+      });
+    });
+
+    await new Promise<void>((resolve) =>
+      setTimeout(() => {
+        this.emit("save");
+        resolve();
+      }, 1000)
+    );
   }
 
   public close(listener: "load" | "save") {

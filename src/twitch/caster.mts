@@ -19,6 +19,7 @@ export class TwitchCasterClient extends EventEmitter {
   websocket: WS | null = null;
   delay: number = 5000;
   last: number;
+  closed: boolean = false;
 
   constructor(
     private oidc: TwitchOIDC | null = null,
@@ -31,6 +32,10 @@ export class TwitchCasterClient extends EventEmitter {
   async connect() {
     logger.info("Connecting to Twitch Eventsub");
     this.websocket = new WS(TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_WEBSOCKET_URL);
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 750);
+    });
   }
 
   async subscribe() {
@@ -61,16 +66,21 @@ export class TwitchCasterClient extends EventEmitter {
             code: event.code,
             reason: event.reason,
           },
+          closed: this.closed,
         })
         .info(`Eventsub connection closed`);
 
+      if (this.closed) {
+        return;
+      }
+
       this.delay = this.delay * 2;
-      setTimeout(() => {
+      setTimeout(async () => {
         logger.info(`Reconnecting Eventsub`);
         this.websocket = null;
 
-        this.connect();
-        this.subscribe();
+        await this.connect();
+        await this.subscribe();
       }, this.delay);
     };
 
@@ -137,5 +147,10 @@ export class TwitchCasterClient extends EventEmitter {
           break;
       }
     };
+  }
+
+  async close() {
+    this.closed = true;
+    this.websocket?.close(1012);
   }
 }

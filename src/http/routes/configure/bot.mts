@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { EnvironmentSignals, TWITCH_BOT } from "../../../environment.mjs";
+import { ConfigurationEvents, TWITCH_BOT } from "../../../environment.mjs";
 import VError from "verror";
 import type { Readable } from "node:stream";
 import { ConfigurationLoader } from "../../../loader.mjs";
@@ -120,14 +120,14 @@ export const bot =
     readable,
     method,
     sec,
-    environment,
+    configuration,
     loader,
     worker,
   }: {
     readable: Readable;
     method: "POST" | "GET";
     sec: Partial<Sec>;
-    environment: EnvironmentSignals;
+    configuration: ConfigurationEvents;
     loader: ConfigurationLoader;
     worker: WorkerContext;
   }) => {
@@ -147,7 +147,7 @@ export const bot =
         });
 
         const { result } = isValidBotConfigurationPost(await json.promise);
-        environment.onBotEnvironment({
+        configuration.onBotEnvironment({
           TWITCH_BOT_NAME: result?.botName ?? TWITCH_BOT.TWITCH_BOT_NAME,
           TWITCH_BOT_ID: result?.botId ?? TWITCH_BOT.TWITCH_BOT_ID,
         });
@@ -156,7 +156,7 @@ export const bot =
 
         // Only reload the server if the request is from this configuration page
         if (sec.fetchDest === "iframe") {
-          await loader.onSave();
+          await loader.onSave(worker);
         } else {
           // Otherwise, send a message to the configure page
           await javascript(() => {

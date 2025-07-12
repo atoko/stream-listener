@@ -30,9 +30,7 @@ export const Logger = await Effect.runPromise(
         },
       ]);
 
-      return (yield* logging.logger).withContext({
-        thread: `${isMainThread ? `Main` : `Worker`}`,
-      });
+      return (yield* logging.logger);
     }),
     Context.empty().pipe(withStructuredLogging({}))
   )

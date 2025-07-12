@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
-  EnvironmentSignals,
+  ConfigurationEvents,
   TWITCH_ENVIRONMENT,
 } from "../../../environment.mjs";
 import VError from "verror";
@@ -164,14 +164,14 @@ export const twitch =
     readable,
     method,
     sec,
-    environment,
+    configuration,
     loader,
     worker,
   }: {
     readable: Readable;
     method: "POST" | "GET";
     sec: Partial<Sec>;
-    environment: EnvironmentSignals;
+    configuration: ConfigurationEvents;
     loader: ConfigurationLoader;
     worker: WorkerContext;
   }) => {
@@ -191,7 +191,7 @@ export const twitch =
         });
 
         const { result } = isValidTwitchConfigurationPost(await json.promise);
-        environment.onTwitchEnvironment({
+        configuration.onTwitchEnvironment({
           TWITCH_CLIENT_ID:
             result?.clientId ?? TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
           TWITCH_CLIENT_SECRET:
@@ -213,7 +213,7 @@ export const twitch =
 
         // Only reload the server if the request is from this configuration page
         if (sec.fetchDest === "iframe") {
-          await loader.onSave();
+          await loader.onSave(worker);
         } else {
           // Otherwise, send a message to the configure page
           await javascript(() => {

@@ -3,34 +3,39 @@ import { httpServer } from "./http/server.mts";
 import { websocketServer } from "./http/websockets.mts";
 import { TwitchCasterClient } from "./twitch/caster.mts";
 import {
-  EnvironmentSignals,
+  ConfigurationEvents,
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TwitchEnvironment,
 } from "./environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
-import { PluginInstance } from "./chat/PluginInstance.mjs";
-import { isMainThread, Worker } from "node:worker_threads";
+// import { Plugin } from "./chat/Plugin.mjs";
+import { isMainThread, parentPort, Worker } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
-import { ConfigurationLoader } from "./loader.mjs";
-import { ProcessSignals } from "./signals.mjs";
+import {
+  ConfigurationLoader,
+  type ConfigurationLoaderMessage,
+} from "./loader.mjs";
+import { ProgramSignals } from "./signals.mjs";
 import { WorkerContext } from "./worker.mjs";
 import { Container } from "./container.mjs";
-
-if (isMainThread) {
-  new WorkerContext().thread = "main";
-}
 
 const logger = Logger.child().withPrefix("[MAIN]");
 
 const container = new Container(
   new WorkerContext(),
-  new ProcessSignals(),
-  new EnvironmentSignals(),
-  new PluginInstance(),
-  new ConfigurationLoader()
+  new ProgramSignals(),
+  new ConfigurationEvents(),
+  new ConfigurationLoader(),
+  []
 );
+
+const { loader, worker } = container;
+
+if (isMainThread) {
+  container.worker.thread = "main";
+}
 
 await (async () => {
   const oidc = {
@@ -59,33 +64,54 @@ await (async () => {
   const wss = websocketServer({ http });
   const irc = new TwitchIrcClient(oidc.bot);
   const caster = new TwitchCasterClient(oidc.caster, irc, wss);
-  const { thread } = container.worker;
 
-  once(container.loader, "save").then(() => {
-    logger.debug("Closing http and wss");
-    Promise.allSettled([
-      http.close(),
-      wss.close(),
-      async () => {
-        Object.values(oidc).forEach((oidc) => {
-          oidc.close("authenticated");
-          oidc.close("listening");
-        });
-      },
-      async () => {
-        container.loader.close("load");
-        container.loader.close("save");
-      },
-    ]).then(() => {
-      container.worker.thread = "main";
-      new Worker(new URL(import.meta.url));
-      logger.info("wss closed, new thread started");
-    });
-  });
+  const restart = async () => {
+    logger
+      .withMetadata({
+        ConfigurationLoader: "save",
+      })
+      .info("Closing event listeners");
 
-  if (thread.startsWith(`main`)) {
+    {
+      await Promise.allSettled([http.close(), wss.close()]);
+      logger.debug("HTTP closed");
+    }
+    {
+      await Promise.allSettled([irc.close(), caster.close()]);
+      logger.debug("Websockets closed");
+    }
+    {
+      Object.values(oidc).forEach((oidc) => {
+        oidc.close("authenticated");
+        oidc.close("listening");
+      });
+      logger.debug("Oidc closed");
+    }
+    {
+      loader.close("load");
+      loader.close("save");
+      logger.debug("ConfigurationLoader closed");
+    }
+
+    if (worker.thread.startsWith("main")) {
+      worker.fork(new URL(import.meta.url), "main");
+    }
+  };
+
+  once(loader, "save").then(restart);
+  parentPort?.on(
+    "message",
+    async (message: Partial<ConfigurationLoaderMessage>) => {
+      const { ConfigurationLoader } = message ?? {};
+      if (ConfigurationLoader === "save") {
+        await restart();
+      }
+    }
+  );
+
+  if (worker.thread.startsWith(`main`)) {
     logger.info("Waiting for caster authentication");
-    once(container.loader, "load").then(async () => {
+    once(loader, "load").then(async () => {
       logger.debug("Starting HTTP server");
       http.listen();
 
@@ -110,8 +136,7 @@ await (async () => {
 
         if (!isWorkerStarted) {
           logger.info("Starting worker thread");
-          container.worker.thread = "worker";
-          new Worker(new URL(import.meta.url));
+          worker.fork(new URL(import.meta.url), "worker");
           isWorkerStarted = true;
           logger.debug("Worker thread started");
         }
@@ -120,10 +145,10 @@ await (async () => {
   } else {
     wss.withIrc(irc);
 
-    once(container.loader, "load").then(async () => {
+    once(loader, "load").then(async () => {
       once(oidc.bot, "authenticated").then(async () => {
         logger.info("Connecting irc");
-        irc.connect();
+        await irc.connect();
         irc.subscribe();
         logger.debug("irc subscribed");
       });
@@ -136,9 +161,9 @@ await (async () => {
     });
   }
 
-  ConfigurationLoader.loadAll(container.loader);
+  ConfigurationLoader.loadAll(loader, worker);
 })();
 
 if (isMainThread) {
-  await container.signals.onExit;
+  await container.program.onExit;
 }

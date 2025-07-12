@@ -1,6 +1,6 @@
 import { BroadcastChannel } from "node:worker_threads";
 
-export class ProcessSignals {
+export class ProgramSignals {
   exit: BroadcastChannel = new BroadcastChannel("exit");
   onExit: Promise<void>;
   constructor() {
