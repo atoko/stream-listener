@@ -3,7 +3,7 @@ import { TwitchOIDC } from "../twitch/oidc.mts";
 import { extname, join, dirname } from "path";
 import { readFile, stat } from "fs";
 import { authorize } from "./routes/authorize.mjs";
-import { PluginInstance } from "../chat/PluginInstance.mjs";
+import { Plugin } from "../chat/Plugin.mjs";
 import { parsePath } from "ufo";
 import VError from "verror";
 import { URLSearchParams } from "node:url";
@@ -79,29 +79,29 @@ export function httpServer({ entities, container }: HttpServerOptions) {
 
       const params = new URLSearchParams(search);
 
-      if (plugin.reducer === undefined) {
-        plugin.reducer = await PluginInstance.load(name, {
-          reducer:
-            params.get("reducer") ??
-            (() => {
-              throw new VError(
-                {
-                  info: {
-                    params,
-                    name,
-                    url,
-                  },
-                },
-                "Search param 'reducer' is required"
-              );
-            })(),
-        });
-
-        await plugin.reducer.initialize();
-      }
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify(plugin.reducer.read(), null, 4));
+      // if (plugin.reducer === undefined) {
+      //   plugin.reducer = await Plugin.load(name, {
+      //     reducer:
+      //       params.get("reducer") ??
+      //       (() => {
+      //         throw new VError(
+      //           {
+      //             info: {
+      //               params,
+      //               name,
+      //               url,
+      //             },
+      //           },
+      //           "Search param 'reducer' is required"
+      //         );
+      //       })(),
+      //   });
+      //
+      //   await plugin.reducer.initialize();
+      // }
+      //
+      // res.writeHead(200, { "Content-Type": "application/json" });
+      // return res.end(JSON.stringify(plugin.reducer.read(), null, 4));
     }
 
     // Authentication
@@ -226,8 +226,6 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       if (server.listening) {
         server.closeAllConnections();
         server.close();
-      } else {
-        throw new VError("HTTP server closed");
       }
     },
     configuration: {

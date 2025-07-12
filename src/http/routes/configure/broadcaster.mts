@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
-  EnvironmentSignals,
+  ConfigurationEvents,
   TWITCH_BROADCASTER,
 } from "../../../environment.mjs";
 import VError from "verror";
@@ -139,14 +139,14 @@ export const broadcaster =
     readable,
     method,
     sec,
-    environment,
+    configuration,
     loader,
     worker,
   }: {
     readable: Readable;
     method: "POST" | "GET";
     sec: Partial<Sec>;
-    environment: EnvironmentSignals;
+    configuration: ConfigurationEvents;
     loader: ConfigurationLoader;
     worker: WorkerContext;
   }) => {
@@ -168,7 +168,7 @@ export const broadcaster =
         const { result } = isValidBroadcasterConfigurationPost(
           await json.promise
         );
-        environment.onBroadcasterEnvironment({
+        configuration.onBroadcasterEnvironment({
           TWITCH_BROADCASTER_NAME:
             result?.broadcasterId ?? TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
           TWITCH_BROADCASTER_ID:
@@ -180,7 +180,7 @@ export const broadcaster =
 
         // Only reload the server if the request is from this configuration page
         if (sec.fetchDest === "iframe") {
-          await loader.onSave();
+          await loader.onSave(worker);
         } else {
           // Otherwise, send a message to the configure page
           await javascript(() => {

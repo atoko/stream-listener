@@ -1,7 +1,13 @@
 import VError from "verror";
 
-export class PluginInstance {
-  public reducer?: Awaited<ReturnType<typeof PluginInstance.load>>;
+export type PluginInstance = {
+  initialize: () => Promise<void>;
+  action: (action: unknown) => Promise<void>;
+  read: () => unknown;
+};
+
+export class Plugin {
+  constructor(private reducer: PluginInstance) {}
 
   static load = async (
     path: string,

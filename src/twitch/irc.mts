@@ -11,6 +11,8 @@ const logger = Logger.child().withPrefix("[IRC]");
 
 export class TwitchIrcClient {
   websocket: WebSocket | null = null;
+  private closed: boolean = false;
+
   constructor(protected oidc: TwitchOIDC) {}
 
   static WELCOME_MESSAGES = ["001", "002", "003", "004", "375", "372", "376"];
@@ -31,9 +33,12 @@ export class TwitchIrcClient {
     );
   }
 
-  connect() {
+  async connect() {
     logger.info(`Connecting to Twitch IRC WebSocket`);
     this.websocket = new WebSocket(TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 750);
+    });
   }
 
   subscribe() {
@@ -46,21 +51,24 @@ export class TwitchIrcClient {
         .withMetadata({
           code: event.code,
           reason: event.reason,
+          closed: this.closed,
         })
         .info(`WebSocket connection closed`);
 
-      setTimeout(() => {
+      if (this.closed) {
+        return;
+      }
+
+      setTimeout(async () => {
         logger.info("Reconnecting to IRC...");
         this.websocket = null;
 
-        this.connect();
+        await this.connect();
         this.subscribe();
       }, 5000);
     };
 
-    this.websocket.onopen = () => {
-      this.open?.();
-    };
+    this.websocket.onopen = this.open;
 
     this.websocket.onmessage = (event: MessageEvent) => {
       const message = event.data
@@ -121,6 +129,10 @@ export class TwitchIrcClient {
     if (this.websocket) {
       this.websocket.send(`PRIVMSG ${target} :${message}`);
     }
+  }
+  public async close() {
+    this.closed = true;
+    this.websocket?.close(1012);
   }
 
   private open() {

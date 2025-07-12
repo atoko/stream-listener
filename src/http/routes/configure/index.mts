@@ -1,6 +1,7 @@
 import type { ServerResponse } from "node:http";
 import type { ConfigurationLoader } from "../../../loader.mjs";
 import { javascript } from "../../html.mjs";
+import type { WorkerContext } from "../../../worker.mjs";
 
 declare global {
   interface Window {
@@ -19,10 +20,12 @@ export const frontend =
     endpoint,
     method,
     loader,
+    worker,
   }: {
     endpoint: string;
     method: "GET" | "POST";
     loader: ConfigurationLoader;
+    worker: WorkerContext;
   }) => {
     if (endpoint.trim().length > 0) {
       res.writeHead(301, { Location: "/configure" });
@@ -31,7 +34,7 @@ export const frontend =
       switch (method) {
         // @ts-ignore Fallthrough case in switch
         case "POST":
-          await loader.onSave();
+          await loader.onSave(worker);
         case "GET":
           res.writeHead(200, { "Content-Type": "text/html" });
           await javascript(() => {
@@ -55,10 +58,6 @@ export const frontend =
           });
           return res.end(`
       <section>
-      <iframe
-        name="configure_service" 
-        src="/configure/service" 
-      ></iframe>          
     </section>
     <section>
       <iframe 
@@ -73,6 +72,10 @@ export const frontend =
         name="configure_broadcaster" 
         src="/configure/bot" 
       ></iframe>                   
+      <iframe
+        name="configure_service" 
+        src="/configure/service" 
+      ></iframe>          
 </section>
 
     <form
