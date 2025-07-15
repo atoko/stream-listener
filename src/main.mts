@@ -1,6 +1,6 @@
 import { on, once } from "node:events";
 import { httpServer } from "./http/server.mts";
-import { websocketServer } from "./http/websockets.mts";
+import { websocketServer } from "./http/websocket.mts";
 import { TwitchCasterClient } from "./twitch/caster.mts";
 import {
   ConfigurationEvents,
@@ -11,7 +11,7 @@ import {
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
 // import { Plugin } from "./chat/Plugin.mjs";
-import { isMainThread, parentPort, Worker } from "node:worker_threads";
+import { isMainThread, parentPort } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 import {
   ConfigurationLoader,
@@ -20,6 +20,7 @@ import {
 import { ProgramSignals } from "./signals.mjs";
 import { WorkerContext } from "./worker.mjs";
 import { Container } from "./container.mjs";
+import { PluginCollection } from "./plugins.mjs";
 
 const logger = Logger.child().withPrefix("[MAIN]");
 
@@ -28,7 +29,7 @@ const container = new Container(
   new ProgramSignals(),
   new ConfigurationEvents(),
   new ConfigurationLoader(),
-  []
+  new PluginCollection()
 );
 
 const { loader, worker } = container;
@@ -62,8 +63,8 @@ await (async () => {
   });
 
   const wss = websocketServer({ http });
-  const irc = new TwitchIrcClient(oidc.bot);
-  const caster = new TwitchCasterClient(oidc.caster, irc, wss);
+  const irc = new TwitchIrcClient(oidc.bot, container);
+  const caster = new TwitchCasterClient(oidc.caster, irc);
 
   const restart = async () => {
     logger

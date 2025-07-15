@@ -33,7 +33,7 @@ export class TwitchOIDC extends EventEmitter {
   }
 
   static filepath(entity: TwitchOIDCEntityKind) {
-    return `${process.cwd()}/data/oidc/${entity}.json`;
+    return `${process.cwd()}/runtime/data/oidc/${entity}.json`;
   }
 
   static state({ userId, scope }: { userId?: string; scope?: string }) {

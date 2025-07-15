@@ -5,7 +5,6 @@ import {
   UnixtimeLogPlugin,
   withStructuredLogging,
 } from "@levicape/loglayer-effect";
-import { isMainThread } from "node:worker_threads";
 import { WorkerContext } from "./worker.mjs";
 
 const context = new WorkerContext();
@@ -30,7 +29,7 @@ export const Logger = await Effect.runPromise(
         },
       ]);
 
-      return (yield* logging.logger);
+      return yield* logging.logger;
     }),
     Context.empty().pipe(withStructuredLogging({}))
   )

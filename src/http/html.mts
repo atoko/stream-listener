@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 export const javascript =
-  (fn: Function) =>
+  (fn: Function, options?: { defer?: boolean; async?: boolean }) =>
   async (
     res: ServerResponse<IncomingMessage>,
     templateStrings?: Record<string, string>
@@ -22,6 +22,8 @@ export const javascript =
     res.write(
       `<script
                 type="text/javascript"
+                ${options?.defer ? "defer" : ""}
+                ${options?.async ? "async" : ""}
             >
                 (${serialized})()
             </script>`,

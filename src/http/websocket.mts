@@ -1,9 +1,8 @@
 import { WebSocketServer } from "ws";
-import type { LocksActionCommandMessage } from "../chat/locks/receiver.mts";
-import { chatReceiver } from "../chat/receiver.mts";
 import { httpServer } from "./server.mts";
 import type { TwitchIrcClient } from "../twitch/irc.mts";
 import { Logger } from "../logging.mjs";
+import type { ActionCommandMessage } from "../twitch/api/chat.mjs";
 
 export type WebSocketServerProps = {
   http: ReturnType<typeof httpServer>;
@@ -19,13 +18,13 @@ export function websocketServer(props: WebSocketServerProps) {
     Logger.info("WebSocket connection established");
 
     ws.on("message", (message) => {
-      const command: LocksActionCommandMessage = JSON.parse(
-        message.toString()
-      ) as unknown as LocksActionCommandMessage;
-      const outbox = chatReceiver(command);
-      if (ircClient && Array.isArray(outbox)) {
-        ircClient.private(JSON.stringify(outbox));
-      }
+      // const command: ActionCommandMessage = JSON.parse(
+      //   message.toString()
+      // ) as unknown as ActionCommandMessage;
+      // const outbox = chatReceiver(command);
+      // if (ircClient && Array.isArray(outbox)) {
+      // ircClient.private(JSON.stringify(outbox));
+      // }
     });
   });
 

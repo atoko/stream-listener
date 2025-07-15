@@ -3,21 +3,20 @@ import { TwitchOIDC } from "../twitch/oidc.mts";
 import { extname, join, dirname } from "path";
 import { readFile, stat } from "fs";
 import { authorize } from "./routes/authorize.mjs";
-import { Plugin } from "../chat/Plugin.mjs";
-import { parsePath } from "ufo";
-import VError from "verror";
-import { URLSearchParams } from "node:url";
+import { parseURL } from "ufo";
 import { Logger } from "../logging.mjs";
 import { twitch } from "./routes/configure/twitch.mjs";
 import { OidcConfiguration, SERVICE_ENVIRONMENT } from "../environment.mjs";
 import open from "open";
 import type { Container } from "../container.mjs";
 import { service } from "./routes/configure/service.mjs";
-import { frontend } from "./routes/configure/index.mjs";
+import { configure } from "./routes/configure/index.mjs";
 import { broadcaster } from "./routes/configure/broadcaster.mjs";
 import { bot } from "./routes/configure/bot.mjs";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { instance, plugincollection } from "./routes/plugins/index.mjs";
+import { randomUUID } from "node:crypto";
 
 const rl = createInterface({
   input,
@@ -39,7 +38,7 @@ export type HttpServerOptions = {
 };
 
 export function httpServer({ entities, container }: HttpServerOptions) {
-  const { plugin, worker } = container;
+  const { worker } = container;
   const server = createServer(async (readable, res) => {
     const url = new URL(readable.url!, `http://${readable.headers.host}`);
     const sec = {
@@ -47,64 +46,23 @@ export function httpServer({ entities, container }: HttpServerOptions) {
     };
 
     const method = readable.method as "POST" | "GET";
-    const { pathname, search } = parsePath(url.pathname);
-    const state = url.searchParams.get("state");
-    const userId = state?.split("-")[1];
-    const code = url.searchParams.get("code");
+    const { pathname, search } = parseURL(url.href);
 
     if (pathname === ".well-known/healthcheck") {
       res.writeHead(200, { "Content-Type": "text/plain" });
       return res.end("OK");
     }
 
-    if (pathname.startsWith("/plugin/")) {
-      const name = (() => {
-        const path = pathname.split("/");
-        path.shift();
+    const requestLogger = logger.child().withPrefix("[REQUEST]").withContext({
+      requestId: randomUUID(),
+      method,
+      url,
+    });
 
-        const plugin = path.shift();
+    const state = url.searchParams.get("state");
+    const userId = state?.split("-")[1];
+    const code = url.searchParams.get("code");
 
-        if (plugin === undefined) {
-          throw new VError(
-            {
-              info: {
-                url,
-              },
-            },
-            "Plugin path undefined"
-          );
-        }
-        return plugin;
-      })();
-
-      const params = new URLSearchParams(search);
-
-      // if (plugin.reducer === undefined) {
-      //   plugin.reducer = await Plugin.load(name, {
-      //     reducer:
-      //       params.get("reducer") ??
-      //       (() => {
-      //         throw new VError(
-      //           {
-      //             info: {
-      //               params,
-      //               name,
-      //               url,
-      //             },
-      //           },
-      //           "Search param 'reducer' is required"
-      //         );
-      //       })(),
-      //   });
-      //
-      //   await plugin.reducer.initialize();
-      // }
-      //
-      // res.writeHead(200, { "Content-Type": "application/json" });
-      // return res.end(JSON.stringify(plugin.reducer.read(), null, 4));
-    }
-
-    // Authentication
     if (pathname === "/" && code) {
       logger
         .withMetadata({
@@ -125,6 +83,34 @@ export function httpServer({ entities, container }: HttpServerOptions) {
         entities,
         scope,
       });
+    }
+
+    if (
+      pathname.startsWith("/plugins") &&
+      (method === "POST" || method === "GET")
+    ) {
+      const endpoint = pathname.split("/").at(2) ?? "";
+
+      switch (endpoint) {
+        case "instances":
+          return instance(res)({
+            readable,
+            method,
+            pathname,
+            search,
+            logger: requestLogger,
+            ...container,
+          });
+        default:
+          return plugincollection(res)({
+            readable,
+            sec,
+            method,
+            pathname,
+            search,
+            ...container,
+          });
+      }
     }
 
     if (
@@ -162,7 +148,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
             ...container,
           });
         default:
-          return frontend(res)({
+          return configure(res)({
             endpoint,
             method,
             ...container,
@@ -209,7 +195,6 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       });
     });
   });
-
   return {
     server,
     listen: () => {

@@ -14,7 +14,7 @@ export const ConfigurePageIds = {
   restartButton: "configure_restart_button",
 } as const;
 
-export const frontend =
+export const configure =
   (res: ServerResponse) =>
   async ({
     endpoint,

@@ -6,14 +6,22 @@ import {
 import { TwitchOIDC } from "./oidc.mjs";
 import { Logger } from "../logging.mjs";
 import VError from "verror";
+import type { Container } from "../container.mjs";
+import type { PluginCollection } from "../plugins.mjs";
 
 const logger = Logger.child().withPrefix("[IRC]");
 
 export class TwitchIrcClient {
   websocket: WebSocket | null = null;
+  plugins: PluginCollection;
   private closed: boolean = false;
 
-  constructor(protected oidc: TwitchOIDC) {}
+  constructor(
+    protected oidc: TwitchOIDC,
+    { plugins }: Pick<Container, "plugins">
+  ) {
+    this.plugins = plugins;
+  }
 
   static WELCOME_MESSAGES = ["001", "002", "003", "004", "375", "372", "376"];
 
@@ -135,9 +143,14 @@ export class TwitchIrcClient {
     this.websocket?.close(1012);
   }
 
-  private open() {
+  private async open() {
+    if (this.closed) {
+      logger.warn("Connection closed, skipping irc open()");
+      return;
+    }
+
     logger.info("Opening irc connection");
-    if (this.websocket) {
+    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
       this.websocket.send(`PASS oauth:${this.oidc?.accessToken}`);
       this.websocket.send(`NICK ${TWITCH_BOT.TWITCH_BOT_NAME}`);
       this.websocket.send(
@@ -145,7 +158,14 @@ export class TwitchIrcClient {
       );
       logger.debug("WebSocket connection opened");
     } else {
-      throw new VError("Websocket not initialized");
+      logger.warn("Websocket not initialized, retrying");
+      if (!this.closed) {
+        await new Promise(() => {
+          setTimeout(async () => {
+            await this.open();
+          }, 1000);
+        });
+      }
     }
   }
 }

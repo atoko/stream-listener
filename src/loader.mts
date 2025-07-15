@@ -21,7 +21,7 @@ export type ConfigurationLoaderMessage = {
 
 export class ConfigurationLoader extends EventEmitter {
   static filepath = (key: Configuration) => {
-    return `${process.cwd()}/data/${key.toLowerCase()}.json`;
+    return `${process.cwd()}/runtime/data/${key.toLowerCase()}.json`;
   };
 
   static loadAll(
@@ -56,7 +56,7 @@ export class ConfigurationLoader extends EventEmitter {
       }
     });
 
-    loader.onLoad(worker);
+    loader.onLoad();
     return loader;
   }
 
@@ -88,7 +88,7 @@ export class ConfigurationLoader extends EventEmitter {
     return loader;
   }
 
-  public onLoad({ workers }: WorkerContext) {
+  public onLoad() {
     this.emit("load");
   }
 

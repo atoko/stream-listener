@@ -1,7 +1,7 @@
 import { TWITCH_ENVIRONMENT } from "../environment.mts";
 import { TwitchOIDC } from "./oidc.mjs";
 import type { TwitchIrcClient } from "./irc.mts";
-import type { websocketServer } from "../http/websockets.mts";
+import type { websocketServer } from "../http/websocket.mts";
 import EventEmitter from "events";
 import { WebSocket as WS } from "ws";
 import { Logger } from "../logging.mjs";
@@ -24,7 +24,7 @@ export class TwitchCasterClient extends EventEmitter {
   constructor(
     private oidc: TwitchOIDC | null = null,
     public readonly irc: TwitchIrcClient,
-    private readonly server: ReturnType<typeof websocketServer>
+    // private readonly server: ReturnType<typeof websocketServer>
   ) {
     super();
   }
@@ -131,7 +131,7 @@ export class TwitchCasterClient extends EventEmitter {
         case "session_keepalive":
           break;
         case "notification":
-          const notification = data as EventsubNotificationMessage;
+          // const notification = data as EventsubNotificationMessage;
 
           // const parsedSubscription = {
           //   ...notification.payload,
