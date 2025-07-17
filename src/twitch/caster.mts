@@ -23,8 +23,7 @@ export class TwitchCasterClient extends EventEmitter {
 
   constructor(
     private oidc: TwitchOIDC | null = null,
-    public readonly irc: TwitchIrcClient,
-    // private readonly server: ReturnType<typeof websocketServer>
+    public readonly irc: TwitchIrcClient // private readonly server: ReturnType<typeof websocketServer>
   ) {
     super();
   }

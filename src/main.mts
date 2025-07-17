@@ -10,7 +10,7 @@ import {
 } from "./environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
-// import { Plugin } from "./chat/Plugin.mjs";
+
 import { isMainThread, parentPort } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 import {
@@ -42,19 +42,27 @@ await (async () => {
   const oidc = {
     caster: TwitchOIDC.load(
       new TwitchOIDC({
-        kind: "caster",
         id: TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
         name: TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
-        scope: "channel:manage:redemptions channel:read:redemptions",
-      })
+        scope:
+          "channel:manage:redemptions channel:read:redemptions chat:read chat:edit",
+      }),
+      (entity) => {
+        entity.id = TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID;
+        entity.name = TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME;
+      }
     ),
     bot: TwitchOIDC.load(
       new TwitchOIDC({
-        kind: "bot",
         id: TWITCH_BOT.TWITCH_BOT_ID,
         name: TWITCH_BOT.TWITCH_BOT_NAME,
-        scope: "chat:read chat:edit",
-      })
+        scope:
+          "channel:manage:redemptions channel:read:redemptions chat:read chat:edit",
+      }),
+      (entity) => {
+        entity.id = TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID;
+        entity.name = TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME;
+      }
     ),
   };
   const http = httpServer({
@@ -63,7 +71,7 @@ await (async () => {
   });
 
   const wss = websocketServer({ http });
-  const irc = new TwitchIrcClient(oidc.bot, container);
+  const irc = new TwitchIrcClient(oidc.bot, http, container);
   const caster = new TwitchCasterClient(oidc.caster, irc);
 
   const restart = async () => {
@@ -139,11 +147,13 @@ await (async () => {
           logger.info("Starting worker thread");
           worker.fork(new URL(import.meta.url), "worker");
           isWorkerStarted = true;
+          irc.setupEventHandlers();
           logger.debug("Worker thread started");
         }
       }
     });
   } else {
+    irc.setupEventHandlers();
     wss.withIrc(irc);
 
     once(loader, "load").then(async () => {

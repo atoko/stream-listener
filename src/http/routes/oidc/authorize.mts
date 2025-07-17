@@ -1,7 +1,11 @@
-import { TwitchOIDC } from "../../twitch/oidc.mjs";
-import { SERVICE_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../../environment.mjs";
+import { TwitchOIDC } from "../../../twitch/oidc.mjs";
+import {
+  SERVICE_ENVIRONMENT,
+  TWITCH_ENVIRONMENT,
+} from "../../../environment.mjs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { Logger } from "../../logging.mjs";
+import { Logger } from "../../../logging.mjs";
+import type { ILogLayer } from "loglayer";
 
 export const authorize =
   (res: ServerResponse<IncomingMessage>) =>
@@ -10,17 +14,21 @@ export const authorize =
     userId,
     entities,
     scope,
+    logger,
   }: {
     code: string | null;
     userId?: string;
     entities?: TwitchOIDC[];
     scope?: string;
+    logger: ILogLayer;
   }) => {
     if (code && entities) {
-      Logger.withMetadata({
-        userId,
-        code,
-      }).debug(`[SERVER] Twitch authentication code received`);
+      logger
+        .withMetadata({
+          userId,
+          code: code.length,
+        })
+        .debug(`Twitch authentication code received`);
 
       const token = await TwitchOIDC.token({
         code,
@@ -28,26 +36,32 @@ export const authorize =
       });
 
       if (token.type === "data") {
-        Logger.withMetadata({
-          userId,
-        }).info(`[SERVER] Twitch access token received`);
+        logger
+          .withMetadata({
+            userId,
+          })
+          .info(`Twitch access token received`);
         const validation = await TwitchOIDC.validate({
           accessToken: token.data.access_token,
         });
 
-        Logger.withMetadata({
-          userId,
-          validation,
-        }).info(`[SERVER] Access token is valid`);
+        logger
+          .withMetadata({
+            userId,
+            validation,
+          })
+          .info(`Access token is valid`);
 
         if (validation.type === "data") {
           let success = false;
           await Promise.all(
             entities.map(async (oidc) => {
               if (oidc.entity.id === userId) {
-                Logger.withMetadata({
-                  entity: oidc.entity,
-                }).info(`[SERVER] Access token is valid, resubscribing`);
+                logger
+                  .withMetadata({
+                    entity: oidc.entity,
+                  })
+                  .info(`Access token is valid, resubscribing`);
 
                 success = true;
 
@@ -56,12 +70,14 @@ export const authorize =
                   refresh: token.data.refresh_token,
                 });
 
-                oidc.onAuthenticate();
+                logger
+                  .withMetadata({
+                    type,
+                    filepath,
+                  })
+                  .debug(`Tokens successfully written`);
 
-                Logger.withMetadata({
-                  type,
-                  filepath,
-                }).debug(`[SERVER] Tokens successfully written`);
+                oidc.onAuthenticate();
 
                 return;
               }
@@ -130,6 +146,18 @@ export const authorize =
                   </html>
               `);
           }
+        } else {
+          logger
+            .withMetadata({
+              token,
+              userId,
+            })
+            .warn(`Twitch authorize failed`);
+
+          res.writeHead(501, { "Content-Type": "text/html" });
+          return res.end(
+            "<h1>Internal Server Error</h1><p>Please try again.</p>"
+          );
         }
       } else {
         res.writeHead(400, { "Content-Type": "text/html" });

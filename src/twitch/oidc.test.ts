@@ -62,7 +62,6 @@ describe("TwitchOIDC", () => {
     jest.spyOn(TwitchOIDC, "nonce").mockReturnValue("123456789");
 
     const oidc = new TwitchOIDC({
-      kind: "bot",
       id: "123456789",
       name: "test-bot",
       scope: "chat:read chat:edit",
@@ -81,7 +80,7 @@ describe("TwitchOIDC", () => {
   describe("Static methods", () => {
     test("filepath", () => {
       setup();
-      const filepath = TwitchOIDC.filepath("bot");
+      const filepath = TwitchOIDC.filepath("1231232");
       expect(filepath).toBe(`${process.cwd()}/data/bot.json`);
     });
 
@@ -125,7 +124,6 @@ describe("TwitchOIDC", () => {
   describe("load", () => {
     test("load - waits for listening event", async () => {
       const oidc = new TwitchOIDC({
-        kind: "caster",
         id: "",
         name: "",
         scope: "",
@@ -134,7 +132,7 @@ describe("TwitchOIDC", () => {
       oidc.read = mock.fn();
       oidc.authorize = mock.fn();
 
-      TwitchOIDC.load(oidc);
+      TwitchOIDC.load(oidc, () => {});
 
       expect(oidc.read).not.toHaveBeenCalled();
       expect(oidc.authorize).not.toHaveBeenCalled();
@@ -198,7 +196,7 @@ describe("TwitchOIDC", () => {
   describe("refresh", () => {
     test("refresh fails without refresh token", async () => {
       const { oidc } = setup();
-      oidc.refreshToken = undefined;
+      oidc._refreshToken = undefined;
 
       expect(await oidc.refresh()).toMatchObject({
         type: "error" as const,
@@ -227,13 +225,13 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = access_token;
-      oidc.refreshToken = refresh_token;
+      oidc._accessToken = access_token;
+      oidc._refreshToken = refresh_token;
 
       const url = [
         `https://id.twitch.tv/oauth2/token`,
         `?grant_type=refresh_token`,
-        `&refresh_token=${oidc.refreshToken}`,
+        `&refresh_token=${oidc._refreshToken}`,
         `&client_id=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}`,
         `&client_secret=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}`,
       ].join("");
@@ -273,13 +271,13 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = access_token;
-      oidc.refreshToken = refresh_token;
+      oidc._accessToken = access_token;
+      oidc._refreshToken = refresh_token;
 
       const url = [
         `https://id.twitch.tv/oauth2/token`,
         `?grant_type=refresh_token`,
-        `&refresh_token=${oidc.refreshToken}`,
+        `&refresh_token=${oidc._refreshToken}`,
         `&client_id=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}`,
         `&client_secret=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}`,
       ].join("");
@@ -316,13 +314,13 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = access_token;
-      oidc.refreshToken = refresh_token;
+      oidc._accessToken = access_token;
+      oidc._refreshToken = refresh_token;
 
       const url = [
         `https://id.twitch.tv/oauth2/token`,
         `?grant_type=refresh_token`,
-        `&refresh_token=${oidc.refreshToken}`,
+        `&refresh_token=${oidc._refreshToken}`,
         `&client_id=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}`,
         `&client_secret=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}`,
       ].join("");
@@ -359,13 +357,13 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = access_token;
-      oidc.refreshToken = refresh_token;
+      oidc._accessToken = access_token;
+      oidc._refreshToken = refresh_token;
 
       const url = [
         `https://id.twitch.tv/oauth2/token`,
         `?grant_type=refresh_token`,
-        `&refresh_token=${oidc.refreshToken}`,
+        `&refresh_token=${oidc._refreshToken}`,
         `&client_id=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID}`,
         `&client_secret=${TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET}`,
       ].join("");
@@ -413,11 +411,11 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = "test-access-token";
-      oidc.refreshToken = "test-refresh-token";
+      oidc._accessToken = "test-access-token";
+      oidc._refreshToken = "test-refresh-token";
 
       const response = await TwitchOIDC.validate({
-        accessToken: oidc.accessToken,
+        accessToken: oidc._accessToken,
       });
 
       expect(response).toMatchObject({
@@ -444,11 +442,11 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = "test-access-token";
-      oidc.refreshToken = "test-refresh-token";
+      oidc._accessToken = "test-access-token";
+      oidc._refreshToken = "test-refresh-token";
 
       const response = await TwitchOIDC.validate({
-        accessToken: oidc.accessToken,
+        accessToken: oidc._accessToken,
       });
 
       expect(response).toMatchObject({
@@ -472,11 +470,11 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = "test-access-token";
-      oidc.refreshToken = "test-refresh-token";
+      oidc._accessToken = "test-access-token";
+      oidc._refreshToken = "test-refresh-token";
 
       const response = await TwitchOIDC.validate({
-        accessToken: oidc.accessToken,
+        accessToken: oidc._accessToken,
       });
 
       expect(response).toMatchObject({
@@ -500,11 +498,11 @@ describe("TwitchOIDC", () => {
       );
 
       const { oidc } = setup();
-      oidc.accessToken = "test-access-token";
-      oidc.refreshToken = "test-refresh-token";
+      oidc._accessToken = "test-access-token";
+      oidc._refreshToken = "test-refresh-token";
 
       const response = await TwitchOIDC.validate({
-        accessToken: oidc.accessToken,
+        accessToken: oidc._accessToken,
       });
 
       expect(response).toMatchObject({
@@ -525,20 +523,26 @@ describe("TwitchOIDC", () => {
       const refresh_token = "test-refresh-token";
 
       const { oidc } = setup();
-      oidc.accessToken = access_token;
-      oidc.refreshToken = refresh_token;
+      // @ts-ignore
+      oidc._accessToken = access_token;
+      // @ts-ignore
+      oidc._refreshToken = refresh_token;
 
       const response = oidc.write({
-        access: oidc.accessToken,
-        refresh: oidc.refreshToken,
+        // @ts-ignore
+        access: oidc._accessToken,
+        // @ts-ignore
+        refresh: oidc._refreshToken,
       });
 
       expect(mockedWriteFileSync).toHaveBeenCalledWith(
         tempfile,
         JSON.stringify(
           {
-            access_token: oidc.accessToken,
-            refresh_token: oidc.refreshToken,
+            // @ts-ignore
+            access_token: oidc._accessToken,
+            // @ts-ignore
+            refresh_token: oidc._refreshToken,
           },
           null,
           4
@@ -547,7 +551,7 @@ describe("TwitchOIDC", () => {
 
       expect(response).toMatchObject({
         type: "data",
-        message: `${oidc.entity.kind} tokens successfully written to auth.json`,
+        message: `tokens successfully written to auth.json`,
       });
     });
 
@@ -561,12 +565,16 @@ describe("TwitchOIDC", () => {
       const refresh_token = "test-refresh-token";
 
       const { oidc } = setup();
-      oidc.accessToken = access_token;
-      oidc.refreshToken = refresh_token;
+      // @ts-ignore
+      oidc._accessToken = access_token;
+      // @ts-ignore
+      oidc._refreshToken = refresh_token;
 
       const response = await oidc.write({
-        access: oidc.accessToken,
-        refresh: oidc.refreshToken,
+        // @ts-ignore
+        access: oidc._accessToken,
+        // @ts-ignore
+        refresh: oidc._refreshToken,
       });
 
       expect(mockedWriteFileSync).toHaveBeenCalledWith(

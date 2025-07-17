@@ -2,7 +2,7 @@ import { createServer } from "http";
 import { TwitchOIDC } from "../twitch/oidc.mts";
 import { extname, join, dirname } from "path";
 import { readFile, stat } from "fs";
-import { authorize } from "./routes/authorize.mjs";
+import { authorize } from "./routes/oidc/authorize.mjs";
 import { parseURL } from "ufo";
 import { Logger } from "../logging.mjs";
 import { twitch } from "./routes/configure/twitch.mjs";
@@ -17,6 +17,14 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { instance, plugincollection } from "./routes/plugins/index.mjs";
 import { randomUUID } from "node:crypto";
+import { duplexPair } from "node:stream";
+import { chatInput, chatPage, chatStream } from "./routes/chat/index.mjs";
+
+declare global {
+  interface Window {
+    _chat_event_source: EventSource;
+  }
+}
 
 const rl = createInterface({
   input,
@@ -37,8 +45,26 @@ export type HttpServerOptions = {
   container: Container;
 };
 
+export type HttpServer = ReturnType<typeof httpServer>;
+
+const createDuplex = () => {
+  const duplex = duplexPair();
+  return {
+    input: duplex[0],
+    output: duplex[1],
+  };
+};
+
+export type DuplexStream = ReturnType<typeof createDuplex>;
+
 export function httpServer({ entities, container }: HttpServerOptions) {
   const { worker } = container;
+
+  // Outgoing
+  const irc = createDuplex();
+  // Incoming
+  const chat = createDuplex();
+
   const server = createServer(async (readable, res) => {
     const url = new URL(readable.url!, `http://${readable.headers.host}`);
     const sec = {
@@ -82,6 +108,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
         userId,
         entities,
         scope,
+        logger: requestLogger,
       });
     }
 
@@ -156,6 +183,23 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       }
     }
 
+    if (pathname.startsWith("/chat")) {
+      const endpoint = pathname.split("/").at(2) ?? "";
+      switch (endpoint) {
+        case "stream":
+          return chatStream(res)({
+            ircDuplex: irc,
+          });
+        case "input":
+          return await chatInput(res)({
+            readable,
+            chatDuplex: chat,
+          });
+        default:
+          return await chatPage(res)();
+      }
+    }
+
     let filePath =
       readable.url === "/" ? INDEX_FILE : join(PUBLIC_DIR, readable.url || "");
     const ext = extname(filePath);
@@ -195,6 +239,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       });
     });
   });
+
   return {
     server,
     listen: () => {
@@ -234,6 +279,10 @@ export function httpServer({ entities, container }: HttpServerOptions) {
           }
         }
       },
+    },
+    streams: {
+      irc,
+      chat,
     },
   };
 }

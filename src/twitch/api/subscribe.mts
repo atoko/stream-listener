@@ -24,7 +24,7 @@ export const subscribe = async (
     let response = await fetch(subEventURL, {
       method: "POST",
       headers: {
-        Authorization: "Bearer " + entity.refreshToken,
+        Authorization: "Bearer " + (await entity.readRefreshToken()),
         "Client-Id": TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
         "Content-Type": "application/json",
       },

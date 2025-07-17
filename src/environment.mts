@@ -119,7 +119,7 @@ export class ConfigurationEvents {
     Object.assign(SERVICE_ENVIRONMENT, {
       SERVER_PORT: new URL(serverUrl).port,
       SERVER_REDIRECT_URL: redirectUrl,
-      SERVER_CONFIGURE_URL: configurationUrl,
+      SERVER_CONFIGURATION_URL: configurationUrl,
     });
   }
 

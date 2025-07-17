@@ -169,9 +169,9 @@ export const broadcaster =
           await json.promise
         );
         configuration.onBroadcasterEnvironment({
-          TWITCH_BROADCASTER_NAME:
-            result?.broadcasterId ?? TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
           TWITCH_BROADCASTER_ID:
+            result?.broadcasterId ?? TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
+          TWITCH_BROADCASTER_NAME:
             result?.broadcasterName ??
             TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
         });

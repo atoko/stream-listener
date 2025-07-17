@@ -17,15 +17,7 @@ export function websocketServer(props: WebSocketServerProps) {
   wss.on("connection", (ws) => {
     Logger.info("WebSocket connection established");
 
-    ws.on("message", (message) => {
-      // const command: ActionCommandMessage = JSON.parse(
-      //   message.toString()
-      // ) as unknown as ActionCommandMessage;
-      // const outbox = chatReceiver(command);
-      // if (ircClient && Array.isArray(outbox)) {
-      // ircClient.private(JSON.stringify(outbox));
-      // }
-    });
+    ws.on("message", (message) => {});
   });
 
   return {
