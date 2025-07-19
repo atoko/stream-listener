@@ -2,7 +2,6 @@ import { WebSocketServer } from "ws";
 import { httpServer } from "./server.mts";
 import type { TwitchIrcClient } from "../twitch/irc.mts";
 import { Logger } from "../logging.mjs";
-import type { ActionCommandMessage } from "../twitch/api/chat.mjs";
 
 export type WebSocketServerProps = {
   http: ReturnType<typeof httpServer>;

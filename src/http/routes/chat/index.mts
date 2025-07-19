@@ -2,8 +2,8 @@ import type { ServerResponse } from "node:http";
 import type { ChatInputMessage } from "../../../twitch/irc.mjs";
 import type { Readable } from "node:stream";
 import type { DuplexStream } from "../../server.mjs";
-import { IrcParseableCommands } from "../../../twitch/irc/parse/command.js";
-import type { ParsedMessage } from "../../../twitch/irc/parse/message.js";
+import { IrcParseableCommandSet } from "../../../twitch/irc/parse/command.mjs";
+import type { ParsedMessage } from "../../../twitch/irc/parse/message.mjs";
 import { javascript } from "../../html.mjs";
 
 export const chatStream =
@@ -25,7 +25,7 @@ export const chatStream =
       }
 
       const { command } = (parsed as ParsedMessage) ?? {};
-      if (command ?? "" in IrcParseableCommands) {
+      if (IrcParseableCommandSet.has(command?.command ?? "")) {
         res.write(`data: ${JSON.stringify(parsed)} \n\n`);
       }
     };

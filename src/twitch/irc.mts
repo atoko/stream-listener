@@ -11,7 +11,7 @@ import type { PluginCollection } from "../plugins.mjs";
 import type { HttpServer } from "../http/server.mjs";
 import { parentPort } from "node:worker_threads";
 import type { WorkerContext } from "../worker.mjs";
-import { type ParsedMessage, parseIrcMessage } from "./irc/parse/message.js";
+import { type ParsedMessage, parseIrcMessage } from "./irc/parse/message.mjs";
 
 const logger = Logger.child().withPrefix("[IRC]");
 
