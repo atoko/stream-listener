@@ -35,11 +35,15 @@ export const SERVICE_ENVIRONMENT = {
 export const TWITCH_BROADCASTER = {
   TWITCH_BROADCASTER_ID: env.TWITCH_BROADCASTER_ID || "",
   TWITCH_BROADCASTER_NAME: env.TWITCH_BROADCASTER_NAME || "broadcaster",
+  TWITCH_BROADCASTER_SCOPE:
+    env.TWITCH_BROADCASTER_SCOPE || "chat:read chat:edit",
 } as const;
 
 export const TWITCH_BOT = {
   TWITCH_BOT_ID: env.TWITCH_BOT_ID || "",
   TWITCH_BOT_NAME: env.TWITCH_BOT_NAME || "twitch_bot",
+  TWITCH_BOT_SCOPE: env.TWITCH_BOT_SCOPE || "chat:read chat:edit",
+  TWITCH_BOT_CHANNEL: env.TWITCH_BOT_CHANNEL || "",
 } as const;
 
 export const OIDC_CONFIGURATION = {
@@ -127,6 +131,7 @@ export class ConfigurationEvents {
     Object.assign(TWITCH_BROADCASTER, {
       TWITCH_BROADCASTER_ID: input.TWITCH_BROADCASTER_ID,
       TWITCH_BROADCASTER_NAME: input.TWITCH_BROADCASTER_NAME,
+      TWITCH_BROADCASTER_SCOPE: input.TWITCH_BROADCASTER_SCOPE,
     });
   }
 
@@ -134,6 +139,8 @@ export class ConfigurationEvents {
     Object.assign(TWITCH_BOT, {
       TWITCH_BOT_ID: input.TWITCH_BOT_ID,
       TWITCH_BOT_NAME: input.TWITCH_BOT_NAME,
+      TWITCH_BOT_SCOPE: input.TWITCH_BOT_SCOPE,
+      TWITCH_BOT_CHANNEL: input.TWITCH_BOT_CHANNEL,
     });
   }
 }

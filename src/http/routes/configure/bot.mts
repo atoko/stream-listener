@@ -14,6 +14,8 @@ type TwitchId = string;
 type ConfigurationBotPost = {
   botId?: TwitchId;
   botName?: string;
+  botScope?: string;
+  botChannel?: string;
 };
 
 const ConfigurationBotHeadings = {
@@ -25,11 +27,15 @@ const ConfigurationBotHeadings = {
 const ConfigurationBotLabel: Record<keyof ConfigurationBotPost, string> = {
   botId: "Bot ID",
   botName: "Bot Name",
+  botScope: "Bot scope",
+  botChannel: "Stream to join",
 };
 
 const ConfigurationBotName: Record<keyof ConfigurationBotPost, string> = {
   botId: "twitch_bot_id",
   botName: "twitch_bot_name",
+  botScope: "twitch_bot_scope",
+  botChannel: "twitch_bot_channel",
 };
 
 const regexp = { alphanumeric: new RegExp("^[a-zA-Z0-9_]*$") };
@@ -74,8 +80,10 @@ const isValidBotConfigurationPost = (
     const result = {
       botId: params.get(ConfigurationBotName.botId) ?? undefined,
       botName: params.get(ConfigurationBotName.botName) ?? undefined,
+      botScope: params.get(ConfigurationBotName.botScope) ?? undefined,
+      botChannel: params.get(ConfigurationBotName.botChannel) ?? undefined,
     };
-    const { botId, botName } = result;
+    const { botId, botName, botScope, botChannel } = result;
 
     const fieldset: Array<
       [
@@ -86,6 +94,8 @@ const isValidBotConfigurationPost = (
     > = [
       [ConfigurationBotLabel.botId, botId, [alphanumeric, length]],
       [ConfigurationBotLabel.botName, botName, [alphanumeric, length]],
+      [ConfigurationBotLabel.botName, botScope, [length]],
+      [ConfigurationBotLabel.botName, botChannel, [length]],
     ] as const;
 
     const errors = fieldset
@@ -150,6 +160,9 @@ export const bot =
         configuration.onBotEnvironment({
           TWITCH_BOT_NAME: result?.botName ?? TWITCH_BOT.TWITCH_BOT_NAME,
           TWITCH_BOT_ID: result?.botId ?? TWITCH_BOT.TWITCH_BOT_ID,
+          TWITCH_BOT_CHANNEL:
+            result?.botChannel ?? TWITCH_BOT.TWITCH_BOT_CHANNEL,
+          TWITCH_BOT_SCOPE: result?.botScope ?? TWITCH_BOT.TWITCH_BOT_SCOPE,
         });
 
         await ConfigurationLoader.saveAll(loader);
@@ -207,8 +220,29 @@ export const bot =
                       </label>
                   </input>
                 </div>    
+                 <div>
+                      <label>
+                          ${ConfigurationBotLabel.botScope}
+                  <input 
+                    type="text"
+                    name=${ConfigurationBotName.botScope}
+                    value=${TWITCH_BOT.TWITCH_BOT_SCOPE}
+                  >
+                      </label>
+                  </input>
+                </div>    
+                 <div>
+                      <label>
+                          ${ConfigurationBotLabel.botChannel}
+                  <input 
+                    type="text"
+                    name=${ConfigurationBotName.botChannel}
+                    value=${TWITCH_BOT.TWITCH_BOT_CHANNEL}
+                  >
+                      </label>
+                  </input>
+                </div>                                    
             </fieldset>             
-            </fieldset>
             <button        
               type="submit"
             >

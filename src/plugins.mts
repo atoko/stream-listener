@@ -2,6 +2,13 @@ import VError from "verror";
 import EventEmitter from "node:events";
 import { readdirSync, existsSync } from "node:fs";
 import { ProgramSignals } from "./signals.mjs";
+import type { HttpServer } from "./http/server.mjs";
+import type { ParsedMessage } from "./twitch/irc/parse/message.mjs";
+import { IrcParseableCommandSet } from "./twitch/irc/parse/command.mjs";
+import type { Container } from "./container.mjs";
+import { Logger } from "./logging.mjs";
+
+const logger = Logger.child().withPrefix("[PLUGIN]");
 
 export type PluginDescriptor = {
   path: string;
@@ -13,12 +20,12 @@ export type PluginInstance = {
   path: string;
   name: string;
   initialize: () => Promise<void>;
-  action: (action: unknown) => Promise<void>;
+  action: (action: ParsedMessage) => Promise<void>;
   read: () => unknown;
 };
 
 export class PluginCollection extends EventEmitter {
-  plugins: PluginInstance[] = [];
+  plugins: Record<string, PluginInstance> = {};
 
   static filepath() {
     return `${ProgramSignals.directory()}/plugins`;
@@ -29,7 +36,7 @@ export class PluginCollection extends EventEmitter {
   }
 
   public get(name: string): PluginInstance | undefined {
-    return this.plugins.find((plugin) => plugin.name === name) ?? undefined;
+    return this.plugins[name] ?? undefined;
   }
 
   public load = async (
@@ -89,7 +96,7 @@ export class PluginCollection extends EventEmitter {
       },
     };
 
-    this.plugins.push(instance);
+    this.plugins[name] = instance;
 
     return instance;
   };
@@ -109,7 +116,7 @@ export class PluginCollection extends EventEmitter {
             plugins.push({
               name: plugin,
               path,
-              active: this.plugins.find((p) => p.name === plugin) !== undefined,
+              active: plugin in this.plugins,
             });
             found = true;
           }
@@ -118,5 +125,32 @@ export class PluginCollection extends EventEmitter {
     }
 
     return plugins;
+  };
+
+  private onChatInput = (
+    http: HttpServer,
+    { worker }: Pick<Container, "worker">
+  ) => {
+    http.streams.irc.output.on("data", (chunk) => {
+      const parsed = JSON.parse(chunk);
+      if (typeof parsed === "string") {
+        return;
+      }
+
+      const { command } = (parsed as ParsedMessage) ?? {};
+      if (IrcParseableCommandSet.has(command?.command ?? "")) {
+        Object.values(this.plugins).forEach((plugin) => {
+          logger.trace(`Receiving event for ${plugin.name}@${plugin.path}`);
+          plugin.action(parsed);
+        });
+      }
+    });
+
+    logger.debug("Subscribed to chat input");
+  };
+
+  public setupEventHandlers = (http: HttpServer, container: Container) => {
+    logger.info("Setting up event handlers");
+    this.onChatInput(http, { ...container });
   };
 }

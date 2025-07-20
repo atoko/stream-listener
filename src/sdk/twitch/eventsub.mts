@@ -1,1 +1,1 @@
-export * from "../../twitch/api/eventsub.mjs"
+export * from "../../twitch/api/eventsub.mjs";

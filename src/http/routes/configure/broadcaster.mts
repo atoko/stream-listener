@@ -17,6 +17,7 @@ type TwitchId = string;
 type ConfigurationBroadcasterPost = {
   broadcasterId?: TwitchId;
   broadcasterName?: string;
+  broadcasterScope?: string;
 };
 
 const ConfigurationBroadcasterHeadings = {
@@ -31,6 +32,7 @@ const ConfigurationBroadcasterLabel: Record<
 > = {
   broadcasterId: "Broadcaster ID",
   broadcasterName: "Broadcaster Name",
+  broadcasterScope: "Broadcaster Scope",
 };
 
 const ConfigurationBroadcasterName: Record<
@@ -39,6 +41,7 @@ const ConfigurationBroadcasterName: Record<
 > = {
   broadcasterId: "twitch_broadcaster_id",
   broadcasterName: "twitch_broadcaster_name",
+  broadcasterScope: "twitch_broadcaster_scope",
 };
 
 const regexp = { alphanumeric: new RegExp("^[a-zA-Z0-9_]*$") };
@@ -85,8 +88,10 @@ const isValidBroadcasterConfigurationPost = (
         params.get(ConfigurationBroadcasterName.broadcasterId) ?? undefined,
       broadcasterName:
         params.get(ConfigurationBroadcasterName.broadcasterName) ?? undefined,
+      broadcasterScope:
+        params.get(ConfigurationBroadcasterName.broadcasterScope) ?? undefined,
     };
-    const { broadcasterId, broadcasterName } = result;
+    const { broadcasterId, broadcasterName, broadcasterScope } = result;
 
     const fieldset: Array<
       [
@@ -104,6 +109,11 @@ const isValidBroadcasterConfigurationPost = (
         ConfigurationBroadcasterLabel.broadcasterName,
         broadcasterName,
         [alphanumeric, length],
+      ],
+      [
+        ConfigurationBroadcasterLabel.broadcasterScope,
+        broadcasterScope,
+        [length],
       ],
     ] as const;
 
@@ -174,6 +184,9 @@ export const broadcaster =
           TWITCH_BROADCASTER_NAME:
             result?.broadcasterName ??
             TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
+          TWITCH_BROADCASTER_SCOPE:
+            result?.broadcasterScope ??
+            TWITCH_BROADCASTER.TWITCH_BROADCASTER_SCOPE,
         });
 
         await ConfigurationLoader.saveAll(loader);
@@ -230,9 +243,19 @@ export const broadcaster =
                   />
                   </input>
                       </label>
-                </div>    
-            </fieldset>             
-            </fieldset>
+                </div>
+                 <div>
+                      <label>
+                          ${ConfigurationBroadcasterLabel.broadcasterScope}
+                  <input 
+                    type="text"
+                    name=${ConfigurationBroadcasterName.broadcasterScope}
+                    value=${TWITCH_BROADCASTER.TWITCH_BROADCASTER_SCOPE}
+                  >
+                      </label>
+                  </input>
+                </div>                    
+            </fieldset>   
             <button        
               type="submit"
             >

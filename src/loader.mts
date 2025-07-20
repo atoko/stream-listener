@@ -24,10 +24,7 @@ export class ConfigurationLoader extends EventEmitter {
     return `${process.cwd()}/runtime/data/${key.toLowerCase()}.json`;
   };
 
-  static loadAll(
-    loader: ConfigurationLoader,
-    worker: WorkerContext
-  ): ConfigurationLoader {
+  static loadAll(loader: ConfigurationLoader): ConfigurationLoader {
     CONFIGURATIONS.map((config) => {
       const data = loader.load(config);
       let other: Object | undefined;

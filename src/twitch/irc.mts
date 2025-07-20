@@ -281,16 +281,20 @@ export class TwitchIrcClient {
 
     logger.info("Opening irc connection");
     if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+      let channel = TWITCH_BOT.TWITCH_BOT_CHANNEL;
+      if (channel.trim().length === 0) {
+        channel = TWITCH_BOT.TWITCH_BOT_NAME;
+      }
+
       this.websocket.send(`PASS oauth:${await this.oidc.readAccessToken()}`);
       this.websocket.send(`NICK ${TWITCH_BOT.TWITCH_BOT_NAME}`);
+      this.websocket.send(`CAP REQ :twitch.tv/tags`);
       await new Promise<void>((resolve) => {
         setTimeout(async () => {
           resolve();
         }, 500 + Math.random() * 200);
       });
-      this.websocket.send(
-        `JOIN #${TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME}`
-      );
+      this.websocket.send(`JOIN #${channel}`);
       this.opened = true;
       logger.debug("WebSocket connection opened");
     } else {

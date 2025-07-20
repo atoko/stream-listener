@@ -14,6 +14,7 @@ const IrcParseableCommands = [
 export const IrcParseableCommandSet = new Set(
   IrcParseableCommands as ReadonlyArray<string>
 );
+export type IrcParseableCommand = (typeof IrcParseableCommands)[number];
 
 /**
  * Parses an IRC message and returns a JSON object with the message's

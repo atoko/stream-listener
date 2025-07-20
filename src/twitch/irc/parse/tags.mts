@@ -8,7 +8,7 @@ export type Badges = {
 
 export type Positions = Position[];
 
-type Position = { startPosition: string; endPosition: string };
+export type Position = { startPosition: string; endPosition: string };
 
 export type DictEmotes = { [key: string]: Positions };
 

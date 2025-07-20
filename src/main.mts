@@ -10,7 +10,6 @@ import {
 } from "./environment.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
-
 import { isMainThread, parentPort } from "node:worker_threads";
 import { Logger } from "./logging.mjs";
 import {
@@ -32,37 +31,28 @@ const container = new Container(
   new PluginCollection()
 );
 
-const { loader, worker } = container;
+const { loader, worker, plugins } = container;
 
 if (isMainThread) {
   container.worker.thread = "main";
 }
 
+ConfigurationLoader.loadAll(loader);
 await (async () => {
   const oidc = {
     caster: TwitchOIDC.load(
       new TwitchOIDC({
         id: TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID,
         name: TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME,
-        scope:
-          "channel:manage:redemptions channel:read:redemptions chat:read chat:edit",
-      }),
-      (entity) => {
-        entity.id = TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID;
-        entity.name = TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME;
-      }
+        scope: TWITCH_BROADCASTER.TWITCH_BROADCASTER_SCOPE,
+      })
     ),
     bot: TwitchOIDC.load(
       new TwitchOIDC({
         id: TWITCH_BOT.TWITCH_BOT_ID,
         name: TWITCH_BOT.TWITCH_BOT_NAME,
-        scope:
-          "channel:manage:redemptions channel:read:redemptions chat:read chat:edit",
-      }),
-      (entity) => {
-        entity.id = TWITCH_BROADCASTER.TWITCH_BROADCASTER_ID;
-        entity.name = TWITCH_BROADCASTER.TWITCH_BROADCASTER_NAME;
-      }
+        scope: TWITCH_BOT.TWITCH_BOT_SCOPE,
+      })
     ),
   };
   const http = httpServer({
@@ -148,13 +138,13 @@ await (async () => {
           worker.fork(new URL(import.meta.url), "worker");
           isWorkerStarted = true;
           irc.setupEventHandlers();
+          plugins.setupEventHandlers(http, container);
           logger.debug("Worker thread started");
         }
       }
     });
   } else {
     irc.setupEventHandlers();
-    wss.withIrc(irc);
 
     once(loader, "load").then(async () => {
       once(oidc.bot, "authenticated").then(async () => {
@@ -172,7 +162,7 @@ await (async () => {
     });
   }
 
-  ConfigurationLoader.loadAll(loader, worker);
+  ConfigurationLoader.loadAll(loader);
 })();
 
 if (isMainThread) {

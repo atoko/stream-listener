@@ -132,7 +132,7 @@ describe("TwitchOIDC", () => {
       oidc.read = mock.fn();
       oidc.authorize = mock.fn();
 
-      TwitchOIDC.load(oidc, () => {});
+      TwitchOIDC.load(oidc);
 
       expect(oidc.read).not.toHaveBeenCalled();
       expect(oidc.authorize).not.toHaveBeenCalled();

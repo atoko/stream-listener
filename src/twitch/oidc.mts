@@ -41,9 +41,8 @@ export class TwitchOIDC extends EventEmitter {
     return Math.floor(random).toString(36).substring(0, 15);
   }
 
-  static load(oidc: TwitchOIDC, onLoad: (entity: TwitchOIDCEntity) => void) {
+  static load(oidc: TwitchOIDC) {
     once(oidc, "listening").then(async () => {
-      onLoad(oidc.entity);
       await oidc.read();
 
       if (!oidc._accessToken) {
