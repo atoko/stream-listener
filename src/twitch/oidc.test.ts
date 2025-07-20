@@ -11,7 +11,7 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, mock } from "node:test";
-import { SERVICE_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../environment.mts";
+import { SERVICE_ENVIRONMENT, TWITCH_ENVIRONMENT } from "../configuration.mts";
 
 const mockedOpen = jest.fn();
 const mockedWriteFileSync = jest.fn();

@@ -3,7 +3,7 @@ import {
   coalesce,
   ConfigurationEvents,
   SERVICE_ENVIRONMENT,
-} from "../../../environment.mjs";
+} from "../../../configuration.mjs";
 import VError from "verror";
 import type { Readable } from "node:stream";
 import { ConfigurationLoader } from "../../../loader.mjs";

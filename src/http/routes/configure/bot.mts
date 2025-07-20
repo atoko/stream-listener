@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { ConfigurationEvents, TWITCH_BOT } from "../../../environment.mjs";
+import { ConfigurationEvents, TWITCH_BOT } from "../../../configuration.mjs";
 import VError from "verror";
 import type { Readable } from "node:stream";
 import { ConfigurationLoader } from "../../../loader.mjs";

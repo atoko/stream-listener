@@ -1,7 +1,6 @@
-import { TWITCH_ENVIRONMENT } from "../environment.mts";
+import { TWITCH_ENVIRONMENT } from "../configuration.mts";
 import { TwitchOIDC } from "./oidc.mjs";
 import type { TwitchIrcClient } from "./irc.mts";
-import type { websocketServer } from "../http/websocket.mts";
 import EventEmitter from "events";
 import { WebSocket as WS } from "ws";
 import { Logger } from "../logging.mjs";
@@ -9,7 +8,6 @@ import { serializeError } from "serialize-error";
 import VError from "verror";
 import type {
   EventsubMessage,
-  EventsubNotificationMessage,
   EventsubWelcomeMessage,
 } from "./api/eventsub.mjs";
 

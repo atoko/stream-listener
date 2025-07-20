@@ -3,7 +3,7 @@ import {
   OidcConfiguration,
   SERVICE_ENVIRONMENT,
   TWITCH_ENVIRONMENT,
-} from "../environment.mts";
+} from "../configuration.mts";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import EventEmitter from "events";
 import { Logger } from "../logging.mjs";

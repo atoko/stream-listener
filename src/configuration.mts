@@ -1,4 +1,5 @@
 import { env } from "node:process";
+import type { PluginDescriptor } from "./plugins.mjs";
 
 export const TWITCH_ENVIRONMENT = {
   TWITCH_CLIENT_ID: env.TWITCH_CLIENT_ID || "",
@@ -49,11 +50,16 @@ export const TWITCH_BOT = {
 export const OIDC_CONFIGURATION = {
   OIDC_AUTHORIZE_LINK: env.OIDC_AUTHORIZE_LINK,
 };
+
 export abstract class OidcConfiguration {
   static isOidcHeadless = () => {
     return OIDC_CONFIGURATION.OIDC_AUTHORIZE_LINK !== undefined;
   };
 }
+
+export const PLUGIN_CONFIGURATION = {
+  PLUGIN_ACTIVE_LIST: [],
+};
 
 export const CONFIGURATIONS = [
   "TWITCH",
@@ -61,6 +67,7 @@ export const CONFIGURATIONS = [
   "BOT",
   "SERVICE",
   "OIDC",
+  "PLUGIN",
 ] as const;
 
 export type Configuration = (typeof CONFIGURATIONS)[number];
@@ -69,7 +76,8 @@ export type ConfigurationData =
   | typeof TWITCH_BROADCASTER
   | typeof TWITCH_BOT
   | typeof SERVICE_ENVIRONMENT
-  | typeof OIDC_CONFIGURATION;
+  | typeof OIDC_CONFIGURATION
+  | typeof PLUGIN_CONFIGURATION;
 
 export const coalesce = (varchar: string | null | undefined, value: string) => {
   if (!varchar || varchar.trim().length === 0) {
@@ -141,6 +149,16 @@ export class ConfigurationEvents {
       TWITCH_BOT_NAME: input.TWITCH_BOT_NAME,
       TWITCH_BOT_SCOPE: input.TWITCH_BOT_SCOPE,
       TWITCH_BOT_CHANNEL: input.TWITCH_BOT_CHANNEL,
+    });
+  }
+
+  public onPluginEnvironment(
+    input: Omit<Partial<typeof PLUGIN_CONFIGURATION>, "PLUGIN_ACTIVE_LIST"> & {
+      PLUGIN_ACTIVE_LIST: PluginDescriptor[];
+    }
+  ) {
+    Object.assign(PLUGIN_CONFIGURATION, {
+      PLUGIN_ACTIVE_LIST: input.PLUGIN_ACTIVE_LIST,
     });
   }
 }

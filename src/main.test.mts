@@ -11,7 +11,7 @@
 // import { tmpdir } from "node:os";
 // import { join } from "node:path";
 // import { beforeEach } from "node:test";
-// import { CONFIGURATION, TWITCH_ENVIRONMENT } from "../environment.mts";
+// import { CONFIGURATION, TWITCH_ENVIRONMENT } from "../configuration.mts";
 //
 // const mocks = ({
 //   httpsServer,

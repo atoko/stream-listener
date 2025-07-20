@@ -25,7 +25,7 @@
     </package>
     <package name="twitch.src.twitch">
       <metrics statements="342" coveredstatements="247" conditionals="32" coveredconditionals="24" methods="12" coveredmethods="10"/>
-      <file name="environment.mts" path="/Users/rz-tunes-gotonull/Developer/hear-stream/module/twitch/src/twitch/environment.mts">
+      <file name="configuration.mts" path="/Users/rz-tunes-gotonull/Developer/hear-stream/module/twitch/src/twitch/configuration.mts">
         <metrics statements="25" coveredstatements="25" conditionals="1" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="1" count="1" type="stmt"/>
         <line num="2" count="1" type="stmt"/>

@@ -4,10 +4,11 @@ import { websocketServer } from "./http/websocket.mts";
 import { TwitchCasterClient } from "./twitch/caster.mts";
 import {
   ConfigurationEvents,
+  PLUGIN_CONFIGURATION,
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TwitchEnvironment,
-} from "./environment.mts";
+} from "./configuration.mts";
 import { TwitchIrcClient } from "./twitch/irc.mts";
 import { TwitchOIDC } from "./twitch/oidc.mts";
 import { isMainThread, parentPort } from "node:worker_threads";
@@ -138,6 +139,10 @@ await (async () => {
           worker.fork(new URL(import.meta.url), "worker");
           isWorkerStarted = true;
           irc.setupEventHandlers();
+          PluginCollection.load(
+            plugins,
+            PLUGIN_CONFIGURATION.PLUGIN_ACTIVE_LIST
+          );
           plugins.setupEventHandlers(http, container);
           logger.debug("Worker thread started");
         }

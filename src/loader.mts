@@ -3,11 +3,12 @@ import {
   type ConfigurationData,
   CONFIGURATIONS,
   OIDC_CONFIGURATION,
+  PLUGIN_CONFIGURATION,
   SERVICE_ENVIRONMENT,
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
-} from "./environment.mjs";
+} from "./configuration.mjs";
 import EventEmitter from "events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Logger } from "./logging.mjs";
@@ -45,6 +46,8 @@ export class ConfigurationLoader extends EventEmitter {
           case "OIDC":
             other = OIDC_CONFIGURATION;
             break;
+          case "PLUGIN":
+            other = PLUGIN_CONFIGURATION;
         }
 
         if (other) {
@@ -75,6 +78,9 @@ export class ConfigurationLoader extends EventEmitter {
           break;
         case "OIDC":
           other = OIDC_CONFIGURATION;
+          break;
+        case "PLUGIN":
+          other = PLUGIN_CONFIGURATION;
           break;
       }
       if (other) {

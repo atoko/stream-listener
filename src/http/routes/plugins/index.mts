@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Readable } from "node:stream";
 import type { Sec } from "../../server.mjs";
-import { ConfigurationEvents } from "../../../environment.mjs";
+import { ConfigurationEvents } from "../../../configuration.mjs";
 import { ConfigurationLoader } from "../../../loader.mjs";
-import type { PluginCollection, PluginInstance } from "../../../plugins.mjs";
+import { PluginCollection, type PluginInstance } from "../../../plugins.mjs";
 import { URLSearchParams } from "node:url";
 import type { ILogLayer } from "loglayer";
 import { serializeError } from "serialize-error";
@@ -17,6 +17,8 @@ export const instance =
     pathname,
     search,
     logger,
+    configuration,
+    loader,
   }: {
     pathname: string;
     readable: Readable;
@@ -24,9 +26,28 @@ export const instance =
     plugins: PluginCollection;
     search: string;
     logger: ILogLayer;
+    configuration: ConfigurationEvents;
+    loader: ConfigurationLoader;
   }) => {
     let name: string | undefined = undefined;
     let reducer: PluginInstance | undefined;
+
+    const saveConfiguration = async () => {
+      configuration.onPluginEnvironment({
+        PLUGIN_ACTIVE_LIST: Object.values(plugins?.plugins).map(
+          ({ name, path, reducer }) => {
+            return {
+              name,
+              path,
+              active: true,
+              reducer,
+            };
+          }
+        ),
+      });
+
+      await ConfigurationLoader.saveAll(loader);
+    };
 
     switch (method) {
       // @ts-ignore
@@ -67,6 +88,7 @@ export const instance =
             reducer = await plugins.load(name, path, {
               reducer: reducerParam,
             });
+            await saveConfiguration();
           }
           res.writeHead(301, { Location: `/plugins/instances/${name}/` });
           return res.end();
@@ -104,8 +126,15 @@ export const instance =
       return res.end();
     }
 
-    res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ state: reducer.read() }, null, 4));
+    const serialized = reducer.serialized();
+
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-cache",
+    });
+    return res.end(
+      JSON.stringify({ state: PluginCollection.deserialize(serialized) })
+    );
   };
 
 export const plugincollection =

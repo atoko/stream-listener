@@ -6,7 +6,7 @@ import { authorize } from "./routes/oidc/authorize.mjs";
 import { parseURL } from "ufo";
 import { Logger } from "../logging.mjs";
 import { twitch } from "./routes/configure/twitch.mjs";
-import { OidcConfiguration, SERVICE_ENVIRONMENT } from "../environment.mjs";
+import { OidcConfiguration, SERVICE_ENVIRONMENT } from "../configuration.mjs";
 import open from "open";
 import type { Container } from "../container.mjs";
 import { service } from "./routes/configure/service.mjs";

@@ -2,7 +2,7 @@ import {
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TWITCH_ENVIRONMENT,
-} from "../environment.mjs";
+} from "../configuration.mjs";
 import { TwitchOIDC } from "./oidc.mjs";
 import { Logger } from "../logging.mjs";
 import VError from "verror";

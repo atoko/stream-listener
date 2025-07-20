@@ -10,18 +10,46 @@ import { Logger } from "./logging.mjs";
 
 const logger = Logger.child().withPrefix("[PLUGIN]");
 
+function replacer(key: unknown, value: unknown) {
+  if (value instanceof Map) {
+    return {
+      dataType: "Map",
+      value: Array.from(value.entries()), // or with spread: value: [...value]
+    };
+  } else {
+    return value;
+  }
+}
+function reviver(
+  key: string,
+  value: {
+    dataType: string;
+    value: Array<[string, string]>;
+  }
+) {
+  if (typeof value === "object" && value !== null) {
+    if (value.dataType === "Map") {
+      return Object.fromEntries(value.value);
+    }
+  }
+  return value;
+}
+
 export type PluginDescriptor = {
   path: string;
   name: string;
   active: boolean;
+  reducer: "default";
 };
 
 export type PluginInstance = {
   path: string;
   name: string;
+  reducer: "default";
   initialize: () => Promise<void>;
   action: (action: ParsedMessage) => Promise<void>;
   read: () => unknown;
+  serialized: () => string;
 };
 
 export class PluginCollection extends EventEmitter {
@@ -30,6 +58,18 @@ export class PluginCollection extends EventEmitter {
   static filepath() {
     return `${ProgramSignals.directory()}/plugins`;
   }
+
+  static load(collection: PluginCollection, plugins: Array<PluginDescriptor>) {
+    plugins.forEach((plugin) => {
+      collection.load(plugin.name, plugin.path, {
+        reducer: plugin.reducer,
+      });
+    });
+  }
+
+  static deserialize = (input: string) => {
+    return JSON.parse(input, reviver);
+  };
 
   constructor() {
     super();
@@ -85,6 +125,7 @@ export class PluginCollection extends EventEmitter {
     const instance: PluginInstance = {
       path,
       name,
+      reducer: (imports.reducer as "default") ?? "default",
       initialize: async () => {
         state = await Promise.resolve(reducer(undefined, undefined));
       },
@@ -93,6 +134,9 @@ export class PluginCollection extends EventEmitter {
       },
       read: () => {
         return state;
+      },
+      serialized: () => {
+        return JSON.stringify(state, replacer);
       },
     };
 
@@ -116,6 +160,7 @@ export class PluginCollection extends EventEmitter {
             plugins.push({
               name: plugin,
               path,
+              reducer: "default",
               active: plugin in this.plugins,
             });
             found = true;

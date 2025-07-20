@@ -1,6 +1,6 @@
 import type { WorkerContext } from "./worker.mjs";
 import type { ProgramSignals } from "./signals.mjs";
-import type { ConfigurationEvents } from "./environment.mjs";
+import type { ConfigurationEvents } from "./configuration.mjs";
 import { PluginCollection } from "./plugins.mjs";
 import type { ConfigurationLoader } from "./loader.mjs";
 

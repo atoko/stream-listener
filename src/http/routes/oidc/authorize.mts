@@ -2,7 +2,7 @@ import { TwitchOIDC } from "../../../twitch/oidc.mjs";
 import {
   SERVICE_ENVIRONMENT,
   TWITCH_ENVIRONMENT,
-} from "../../../environment.mjs";
+} from "../../../configuration.mjs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Logger } from "../../../logging.mjs";
 import type { ILogLayer } from "loglayer";
