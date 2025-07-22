@@ -60,10 +60,15 @@ export class PluginCollection extends EventEmitter {
   }
 
   static load(collection: PluginCollection, plugins: Array<PluginDescriptor>) {
+    let errors: Array<PluginDescriptor> = [];
     plugins.forEach((plugin) => {
-      collection.load(plugin.name, plugin.path, {
-        reducer: plugin.reducer,
-      });
+      try {
+        collection.load(plugin.name, plugin.path, {
+          reducer: plugin.reducer,
+        });
+      } catch (e) {
+        errors.push(plugin);
+      }
     });
   }
 
