@@ -54,12 +54,16 @@ export type PluginInstance = {
 
 export class PluginCollection extends EventEmitter {
   plugins: Record<string, PluginInstance> = {};
+  private active: boolean = false;
 
   static filepath() {
     return `${ProgramSignals.directory()}/plugins`;
   }
 
-  static load(collection: PluginCollection, plugins: Array<PluginDescriptor>) {
+  static async load(
+    collection: PluginCollection,
+    plugins: Array<PluginDescriptor>
+  ) {
     let errors: Array<PluginDescriptor> = [];
     plugins.forEach((plugin) => {
       try {
@@ -70,6 +74,7 @@ export class PluginCollection extends EventEmitter {
         errors.push(plugin);
       }
     });
+    await collection.setActive(true);
   }
 
   static deserialize = (input: string) => {
@@ -150,6 +155,10 @@ export class PluginCollection extends EventEmitter {
     return instance;
   };
 
+  static unload = async (collection: PluginCollection) => {
+    collection.plugins = {};
+    await collection.setActive(false);
+  };
   public list = async () => {
     const directory = readdirSync(PluginCollection.filepath()).filter(
       (path) => !path.startsWith(".")
@@ -202,5 +211,13 @@ export class PluginCollection extends EventEmitter {
   public setupEventHandlers = (http: HttpServer, container: Container) => {
     logger.info("Setting up event handlers");
     this.onChatInput(http, { ...container });
+  };
+
+  public isActive = async (): Promise<boolean> => {
+    return this.active;
+  };
+
+  public setActive = async (value: boolean) => {
+    this.active = value;
   };
 }

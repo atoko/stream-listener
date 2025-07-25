@@ -6,7 +6,11 @@ import { authorize } from "./routes/oidc/authorize.mjs";
 import { parseURL } from "ufo";
 import { Logger } from "../logging.mjs";
 import { twitch } from "./routes/configure/twitch.mjs";
-import { OidcConfiguration, SERVICE_ENVIRONMENT } from "../configuration.mjs";
+import {
+  OidcConfiguration,
+  PLUGIN_CONFIGURATION,
+  SERVICE_ENVIRONMENT,
+} from "../configuration.mjs";
 import open from "open";
 import type { Container } from "../container.mjs";
 import { service } from "./routes/configure/service.mjs";
@@ -19,6 +23,7 @@ import { instance, plugincollection } from "./routes/plugins/index.mjs";
 import { randomUUID } from "node:crypto";
 import { duplexPair } from "node:stream";
 import { chatInput, chatPage, chatStream } from "./routes/chat/index.mjs";
+import { PluginCollection } from "../plugins.mjs";
 
 declare global {
   interface Window {
@@ -70,6 +75,11 @@ export function httpServer({ entities, container }: HttpServerOptions) {
     const sec = {
       fetchDest: readable.headers["sec-fetch-dest"] as Sec["fetchDest"],
     };
+    res.setHeaders(
+      new Headers({
+        "Access-Control-Allow-Origin": "*",
+      })
+    );
 
     const method = readable.method as "POST" | "GET";
     const { pathname, search } = parseURL(url.href);
@@ -119,6 +129,62 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       const endpoint = pathname.split("/").at(2) ?? "";
 
       switch (endpoint) {
+        case "start":
+          if (method === "POST") {
+            await PluginCollection.load(
+              container.plugins,
+              PLUGIN_CONFIGURATION.PLUGIN_ACTIVE_LIST
+            );
+            res.writeHead(200, {
+              "Content-Type": "application/json",
+            });
+            return res.end(
+              JSON.stringify({
+                plugins: {
+                  active: await container.plugins.isActive(),
+                },
+              })
+            );
+          } else {
+            res.writeHead(405);
+            return res.end(
+              JSON.stringify({
+                error: "Method not allowed",
+              })
+            );
+          }
+        case "stop":
+          if (method === "POST") {
+            await PluginCollection.unload(container.plugins);
+            res.writeHead(200, {
+              "Content-Type": "application/json",
+            });
+            return res.end(
+              JSON.stringify({
+                plugins: {
+                  active: await container.plugins.isActive(),
+                },
+              })
+            );
+          } else {
+            res.writeHead(405);
+            return res.end(
+              JSON.stringify({
+                error: "Method not allowed",
+              })
+            );
+          }
+        case "active":
+          res.writeHead(200, {
+            "Content-Type": "application/json",
+          });
+          return res.end(
+            JSON.stringify({
+              plugins: {
+                active: await container.plugins.isActive(),
+              },
+            })
+          );
         case "instances":
           return instance(res)({
             readable,

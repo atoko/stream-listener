@@ -9,34 +9,40 @@ if (started) {
   app.quit();
 }
 
+
+let serverPort: number | undefined;
 const startServer = async () => {
-  return new Promise<number>((resolve, reject) => {
-    pm2.connect(() => {
+  return new Promise<void>((resolve, reject) => {
+    pm2.connect(true, () => {
       getPortPromise().then((port) => {
+        serverPort = port;
+
         pm2.start({
+              cwd: path.join(process.cwd(), '..', '..'),
               script: path.join(process.cwd(), '..', '..', 'module', 'main.mjs'),
               env: {
-                SERVER_PORT: String(port)
+                SERVER_PORT: String(port),
+                NODE_OPTIONS: "--experimental-vm-modules"
               },
             },
             function (err, apps) {
-              console.log({
-                apps
-              });
               if (err) {
-                console.error(err)
+                console.error({
+                  pm2: {
+                    err
+                  }
+                })
                 pm2.disconnect()
                 return reject(err)
               }
 
-              resolve(port);
+              resolve();
             });
       });
     });
   })
 }
-
-const createWindow = (port: number) => {
+const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -46,21 +52,30 @@ const createWindow = (port: number) => {
     },
   });
 
+  // Load server debug
+  // mainWindow.loadURL(`http://localhost:${port}/configure`);
+
   // and load the index.html of the app-vite.
-  mainWindow.loadURL(`http://localhost:${port}/configure`);
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+  };
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
+
+  setTimeout(() => {
+    mainWindow.webContents.send("app-port", serverPort);
+  }, 1500)
 };
 
-let port: number | undefined;
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-  startServer().then((serverPort) => {
-    createWindow(serverPort);
-    port = serverPort;
+  startServer().then(() => {
+    createWindow();
   })
 });
 
@@ -79,7 +94,7 @@ app.on('activate', () => {
   // On OS X it's common to re-create a window in the app-vite when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow(port);
+    createWindow();
   }
 });
 
