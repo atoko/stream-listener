@@ -1,54 +1,56 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow } from "electron";
 import { getPortPromise } from "portfinder";
-import path from 'node:path';
-import started from 'electron-squirrel-startup';
-import pm2 from "pm2";
+import path from "node:path";
+import started from "electron-squirrel-startup";
+import { exec } from "node:child_process";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
 
-
 let serverPort: number | undefined;
 const startServer = async () => {
   return new Promise<void>((resolve, reject) => {
-    pm2.connect(true, () => {
-      getPortPromise().then((port) => {
-        serverPort = port;
+    getPortPromise().then((port) => {
+      serverPort = port;
 
-        pm2.start({
-              cwd: path.join(process.cwd(), '..', '..'),
-              script: path.join(process.cwd(), '..', '..', 'module', 'main.mjs'),
-              env: {
-                SERVER_PORT: String(port),
-                NODE_OPTIONS: "--experimental-vm-modules"
-              },
-            },
-            function (err, apps) {
-              if (err) {
-                console.error({
-                  pm2: {
-                    err
-                  }
-                })
-                pm2.disconnect()
-                return reject(err)
-              }
-
-              resolve();
-            });
-      });
+      exec(
+        `node ${path.join(
+          // process.resourcesPath,
+          // "app.asar",
+          // `hear-stream-module`,
+          `${process.cwd()}`, //
+          "..", //
+          "..", //
+          "module", //
+          "main.mjs"
+        )}`,
+        {
+          cwd: path.join(process.resourcesPath),
+          env: {
+            SERVER_PORT: String(port),
+            NODE_OPTIONS: "--experimental-vm-modules",
+          },
+        },
+        (error, stdout, stderr) => {
+          console.error(error);
+          if (error) {
+            throw error;
+          }
+          resolve();
+        }
+      );
     });
-  })
-}
+  });
+};
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -59,38 +61,38 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
-  };
+    mainWindow.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+    );
+  }
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 
   setTimeout(() => {
     mainWindow.webContents.send("app-port", serverPort);
-  }, 1500)
+  }, 1500);
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', () => {
+app.on("ready", () => {
   startServer().then(() => {
     createWindow();
-  })
+  });
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  pm2.stop("all", () => {
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
   // On OS X it's common to re-create a window in the app-vite when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {

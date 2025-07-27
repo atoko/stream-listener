@@ -10,6 +10,7 @@ import type {
   EventsubMessage,
   EventsubWelcomeMessage,
 } from "./api/eventsub.mjs";
+import type { PluginCollection } from "../plugins.mjs";
 
 const logger = Logger.child().withPrefix("[CASTER]");
 
@@ -21,7 +22,8 @@ export class TwitchCasterClient extends EventEmitter {
 
   constructor(
     private oidc: TwitchOIDC | null = null,
-    public readonly irc: TwitchIrcClient // private readonly server: ReturnType<typeof websocketServer>
+    public readonly irc: TwitchIrcClient, // private readonly server: ReturnType<typeof websocketServer>,
+    public readonly plugins: PluginCollection | null = null
   ) {
     super();
   }
@@ -110,20 +112,13 @@ export class TwitchCasterClient extends EventEmitter {
             })
             .info(`Session Welcome`);
 
-          // const { payload } = session_welcome;
+          const { payload } = session_welcome;
           if (!this.oidc) {
             throw new VError("Oidc not initialized");
           }
 
-          // const oidc = this.oidc;
-          // setTimeout(() => {
-          //   subscribe(
-          //     oidc,
-          //     "channel.channel_points_custom_reward_redemption.add",
-          //     "1",
-          //     payload.session.id,
-          //   );
-          // }, 9000);
+          const oidc = this.oidc;
+
           break;
         case "session_keepalive":
           break;

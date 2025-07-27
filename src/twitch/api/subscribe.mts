@@ -76,9 +76,9 @@ export const subscribe = async (
       Logger.withMetadata({
         status: response.status,
         message: result.message,
-      }).info(`Register event subs error`);
+      }).info(`Register event subscription error`);
     }
   } catch (e) {
-    Logger.withError(e).error(`Register event subs exceptional error`);
+    Logger.withError(e).error(`Register event subscription exceptional error`);
   }
 };

@@ -141,6 +141,7 @@ export const plugincollection =
   (res: ServerResponse<IncomingMessage>) =>
   async ({
     plugins,
+    search,
   }: {
     readable: Readable;
     pathname: string;
@@ -151,9 +152,11 @@ export const plugincollection =
     plugins: PluginCollection;
     search: string;
   }) => {
-    res.writeHead(200, { "Content-Type": "text/html" });
-    const installed = await plugins.list();
-    return res.end(`
+    const params = new URLSearchParams(search);
+    if (params.get("output") === "") {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      const installed = await plugins.list();
+      return res.end(`
     <h2>Plugins</h2>   
     ${installed.map((plugin) => {
       const { name, path, active } = plugin;
@@ -187,7 +190,7 @@ export const plugincollection =
                   disabled
                   hidden
               />
-          </label>
+        </label>
           <input 
               id="reducer"
               name="reducer"
@@ -210,4 +213,20 @@ export const plugincollection =
     })}
 </fieldset>
 `);
+    } else {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      const installed = await plugins.list();
+      return res.end(
+        JSON.stringify({
+          plugins: installed.map((plugin) => {
+            const { name, path, active } = plugin;
+            return {
+              name,
+              path,
+              active,
+            };
+          }),
+        })
+      );
+    }
   };

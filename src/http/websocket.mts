@@ -12,10 +12,10 @@ export function websocketServer(props: WebSocketServerProps) {
   const { http } = props;
   const { server } = http;
   let { ircClient } = props;
+
   const wss = new WebSocketServer({ server });
   wss.on("connection", (ws) => {
     Logger.info("WebSocket connection established");
-
     ws.on("message", (message) => {});
   });
 

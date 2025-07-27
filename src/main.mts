@@ -63,7 +63,7 @@ await (async () => {
 
   const wss = websocketServer({ http });
   const irc = new TwitchIrcClient(oidc.bot, http, container);
-  const caster = new TwitchCasterClient(oidc.caster, irc);
+  const caster = new TwitchCasterClient(oidc.caster, irc, container.plugins);
 
   const restart = async () => {
     logger
@@ -139,10 +139,6 @@ await (async () => {
           worker.fork(new URL(import.meta.url), "worker");
           isWorkerStarted = true;
           irc.setupEventHandlers();
-          PluginCollection.load(
-            plugins,
-            PLUGIN_CONFIGURATION.PLUGIN_ACTIVE_LIST
-          );
           plugins.setupEventHandlers(http, container);
           logger.debug("Worker thread started");
         }
