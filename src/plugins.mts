@@ -57,7 +57,7 @@ export class PluginCollection extends EventEmitter {
   private active: boolean = false;
 
   static filepath() {
-    return `${ProgramSignals.directory()}/plugins`;
+    return `${ProgramSignals.applicationDirectory()}/plugins`;
   }
 
   static async load(

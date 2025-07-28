@@ -1,8 +1,8 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, utilityProcess } from "electron";
 import { getPortPromise } from "portfinder";
 import path from "node:path";
 import started from "electron-squirrel-startup";
-import { exec } from "node:child_process";
+import { DataDirectory, InstallPlugins } from "./install/plugins";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -11,39 +11,56 @@ if (started) {
 
 let serverPort: number | undefined;
 const startServer = async () => {
-  return new Promise<void>((resolve, reject) => {
-    getPortPromise().then((port) => {
-      serverPort = port;
+  const port = await getPortPromise();
+  serverPort = port;
 
-      exec(
-        `node ${path.join(
-          // process.resourcesPath,
-          // "app.asar",
-          // `hear-stream-module`,
-          `${process.cwd()}`, //
-          "..", //
-          "..", //
-          "module", //
-          "main.mjs"
-        )}`,
-        {
-          cwd: path.join(process.resourcesPath),
-          env: {
-            SERVER_PORT: String(port),
-            NODE_OPTIONS: "--experimental-vm-modules",
-          },
-        },
-        (error, stdout, stderr) => {
-          console.error(error);
-          if (error) {
-            throw error;
-          }
-          resolve();
-        }
-      );
+  let command: string;
+  let cwd: string;
+  let dataDirectory;
+
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    command = `${path.join(
+      `${process.cwd()}`,
+      "..",
+      "..",
+      "module",
+      "src",
+      "main.mjs"
+    )}`;
+    cwd = process.cwd();
+    dataDirectory = `${path.join(`${process.cwd()}`, "..", "..")}`;
+  } else {
+    command = `${path.join(process.resourcesPath, "server.mjs")}`;
+    dataDirectory = await InstallPlugins();
+    cwd = path.join(dataDirectory);
+  }
+
+  try {
+    console.log({
+      command,
+      cwd,
+      dataDirectory,
     });
-  });
+    const server = utilityProcess.fork(command, [], {
+      cwd,
+      env: {
+        SERVER_PORT: String(port),
+        NODE_OPTIONS: "--experimental-vm-modules",
+        DATA_DIRECTORY: dataDirectory,
+      },
+    });
+
+    server.on("exit", (code) => {
+      app.quit();
+    });
+  } catch (error) {
+    console.error(error);
+    if (error) {
+      throw error;
+    }
+  }
 };
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -99,6 +116,3 @@ app.on("activate", () => {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app-vite's specific main process
-// code. You can also put them in separate files and import them here.

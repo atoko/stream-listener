@@ -25,19 +25,24 @@
   "devDependencies": {
     "@babel/preset-typescript": "^7.27.1",
     "@jest/globals": "30.0.0-beta.3",
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-json": "^6.1.0",
     "@types/jest": "^29.5.14",
-    "@types/verror": "^1.10.11",
     "@types/node": "^22.15.21",
+    "@types/verror": "^1.10.11",
     "@types/ws": "^8.18.1",
+    "adm-zip": "^0.5.16",
     "eslint": "9.27.0",
     "jest": "^29.7.0",
     "prettier": "^2.8.8",
     "publint": "^0.3.12",
+    "rollup": "^4.46.0",
     "syncpack": "^13.0.4",
     "ts-jest": "^29.3.4"
   },
   "exports": {
-  "./sdk/*": "./module/sdk/*.mjs"
+    "./sdk/*": "./module/src/sdk/*.mjs"
   },
   "files": [
     "module"
@@ -46,10 +51,12 @@
   "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531",
   "scripts": {
     "build": "tsc",
+    "bundle": "rollup -c",
+    "package": "node ./iac/package-plugins.mjs",
     "lint": "pnpm prettier src -w",
     "precommit": "syncpack format",
     "prepublishOnly": "publint --strict",
-    "start": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" node ./module/main.mjs",
+    "start": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" node ./module/src/main.mjs",
     "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --inspect\" npx jest  --coverage --coverageProvider=v8 module/**/*.test.*"
   },
   "type": "module"

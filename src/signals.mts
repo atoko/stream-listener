@@ -1,8 +1,13 @@
 import { BroadcastChannel } from "node:worker_threads";
+import { RUNTIME_CONFIGURATION } from "./configuration.mjs";
 
 export class ProgramSignals {
-  static directory = () => {
-    return `${process.cwd()}/runtime`;
+  static applicationDirectory = () => {
+    return RUNTIME_CONFIGURATION.DATA_DIRECTORY;
+  };
+
+  static runtimeDirectory = () => {
+    return `${this.applicationDirectory()}/runtime`;
   };
 
   exit: BroadcastChannel = new BroadcastChannel("exit");

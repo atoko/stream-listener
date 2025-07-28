@@ -51,6 +51,17 @@ export const OIDC_CONFIGURATION = {
   OIDC_AUTHORIZE_LINK: env.OIDC_AUTHORIZE_LINK,
 };
 
+export const RUNTIME_CONFIGURATION = (() => {
+  let DATA_DIRECTORY = env.DATA_DIRECTORY;
+  if (typeof DATA_DIRECTORY !== "string" || DATA_DIRECTORY?.trim() === "") {
+    DATA_DIRECTORY = process.cwd();
+  }
+
+  return {
+    DATA_DIRECTORY,
+  };
+})();
+
 export abstract class OidcConfiguration {
   static isOidcHeadless = () => {
     return OIDC_CONFIGURATION.OIDC_AUTHORIZE_LINK !== undefined;

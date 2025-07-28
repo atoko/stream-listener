@@ -1,4 +1,4 @@
-import { type ParsedMessage  } from "twitch-chat-listener/sdk/twitch/message";
+import { type ParsedMessage  } from "../../src/sdk/twitch/message.mts";
 import { appendFileSync, mkdirSync } from "fs";
 
 const id = Date.now();
