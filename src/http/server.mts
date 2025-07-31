@@ -6,11 +6,7 @@ import { authorize } from "./routes/oidc/authorize.mjs";
 import { parseURL } from "ufo";
 import { Logger } from "../logging.mjs";
 import { twitch } from "./routes/configure/twitch.mjs";
-import {
-  OidcConfiguration,
-  PLUGIN_CONFIGURATION,
-  SERVICE_ENVIRONMENT,
-} from "../configuration.mjs";
+import { OidcConfiguration, SERVICE_ENVIRONMENT } from "../configuration.mjs";
 import open from "open";
 import type { Container } from "../container.mjs";
 import { service } from "./routes/configure/service.mjs";
@@ -19,11 +15,14 @@ import { broadcaster } from "./routes/configure/broadcaster.mjs";
 import { bot } from "./routes/configure/bot.mjs";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { instance, plugincollection } from "./routes/plugins/index.mjs";
+import { pluginCollectionIndex } from "./routes/plugins/index.mjs";
 import { randomUUID } from "node:crypto";
 import { duplexPair } from "node:stream";
 import { chatInput, chatPage, chatStream } from "./routes/chat/index.mjs";
-import { PluginCollection } from "../plugins.mjs";
+import { pluginsInstances } from "./routes/plugins/instances.mjs";
+import { pluginsActive } from "./routes/plugins/active.mjs";
+import { pluginsStart } from "./routes/plugins/start.mjs";
+import { pluginsStop } from "./routes/plugins/stop.mjs";
 
 declare global {
   interface Window {
@@ -130,63 +129,25 @@ export function httpServer({ entities, container }: HttpServerOptions) {
 
       switch (endpoint) {
         case "start":
-          if (method === "POST") {
-            await PluginCollection.load(
-              container.plugins,
-              PLUGIN_CONFIGURATION.PLUGIN_ACTIVE_LIST
-            );
-            res.writeHead(200, {
-              "Content-Type": "application/json",
-            });
-            return res.end(
-              JSON.stringify({
-                plugins: {
-                  active: await container.plugins.isActive(),
-                },
-              })
-            );
-          } else {
-            res.writeHead(405);
-            return res.end(
-              JSON.stringify({
-                error: "Method not allowed",
-              })
-            );
-          }
-        case "stop":
-          if (method === "POST") {
-            await PluginCollection.unload(container.plugins);
-            res.writeHead(200, {
-              "Content-Type": "application/json",
-            });
-            return res.end(
-              JSON.stringify({
-                plugins: {
-                  active: await container.plugins.isActive(),
-                },
-              })
-            );
-          } else {
-            res.writeHead(405);
-            return res.end(
-              JSON.stringify({
-                error: "Method not allowed",
-              })
-            );
-          }
-        case "active":
-          res.writeHead(200, {
-            "Content-Type": "application/json",
+          return pluginsStart(res)({
+            method,
+            pathname,
+            search,
+            ...container,
           });
-          return res.end(
-            JSON.stringify({
-              plugins: {
-                active: await container.plugins.isActive(),
-              },
-            })
-          );
+        case "stop":
+          return pluginsStop(res)({
+            method,
+            pathname,
+            search,
+            ...container,
+          });
+        case "active":
+          return pluginsActive(res)({
+            ...container,
+          });
         case "instances":
-          return instance(res)({
+          return pluginsInstances(res)({
             readable,
             method,
             pathname,
@@ -195,9 +156,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
             ...container,
           });
         default:
-          return plugincollection(res)({
-            readable,
-            sec,
+          return pluginCollectionIndex(res)({
             method,
             pathname,
             search,
@@ -224,6 +183,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
             method,
             readable,
             sec,
+            search,
             ...container,
           });
         case "broadcaster":
@@ -238,6 +198,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
             method,
             readable,
             sec,
+            search,
             ...container,
           });
         default:

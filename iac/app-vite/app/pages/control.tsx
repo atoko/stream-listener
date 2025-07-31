@@ -2,18 +2,8 @@ import React, { useCallback, useContext, useRef, useState } from "react";
 import { Fragment } from "react";
 import { PluginServiceContext } from "../ui/api/plugin/PluginServiceProvider";
 import { clsx } from "clsx";
-import { StartStopControls } from "./control";
-import { TwitchConfiguration } from "./configuration/$TwitchConfiguration";
-import { ListPlugins } from "./plugins/$ListPlugins";
 
-const buttonStyle = (isActive: boolean) => {
-  return {
-    className: clsx("button", isActive ? "is-light" : "", "is-primary"),
-    style: {},
-  };
-};
-
-export const RootIndexPage = () => {
+export const StartStopControls = () => {
   const pluginService = useContext(PluginServiceContext);
   const [isLoading, setIsLoading] = useState(false);
   const [isActive, setIsActive] = useState(false);
@@ -62,12 +52,40 @@ export const RootIndexPage = () => {
 
   return (
     <Fragment>
-      <div>
-        <h1>Chat Listener</h1>
-        <p>Welcome to the chat listener application.</p>
-        <TwitchConfiguration />
-        <ListPlugins />
-        <StartStopControls />
+      <div
+        id="progress"
+        style={{ visibility: isLoading ? "visible" : "hidden" }}
+      >
+        ...
+      </div>
+      <div
+        id="controls"
+        className="box"
+        style={{
+          visibility: isLoading ? "hidden" : "visible",
+          display: "flex",
+          justifyContent: "end",
+          alignItems: "center",
+          gap: "2em",
+        }}
+      >
+        Chatbot
+        <button
+          id="start"
+          className={clsx("button", isActive ? "is-light" : "", "is-primary")}
+          disabled={isActive}
+          onClick={onStartButton}
+        >
+          Start
+        </button>
+        <button
+          id="stop"
+          className={clsx("button", !isActive ? "is-light" : "", "is-primary")}
+          disabled={!isActive}
+          onClick={onStopButton}
+        >
+          Stop
+        </button>
       </div>
     </Fragment>
   );

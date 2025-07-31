@@ -167,6 +167,7 @@ export const twitch =
     configuration,
     loader,
     worker,
+    search,
   }: {
     readable: Readable;
     method: "POST" | "GET";
@@ -174,7 +175,13 @@ export const twitch =
     configuration: ConfigurationEvents;
     loader: ConfigurationLoader;
     worker: WorkerContext;
+    search: string;
   }) => {
+    const params = new URLSearchParams(search);
+    const outputParam = params.get("output");
+    const reloadParam = params.get("reload");
+    const isJsonResponse = outputParam === "json";
+    const isReloadEnabled = reloadParam !== "false";
     switch (method) {
       // @ts-ignore
       case "POST":
@@ -211,10 +218,11 @@ export const twitch =
 
         await ConfigurationLoader.saveAll(loader);
 
-        // Only reload the server if the request is from this configuration page
-        if (sec.fetchDest === "iframe") {
+        if (isReloadEnabled) {
           await loader.onSave(worker);
-        } else {
+        }
+
+        if (sec.fetchDest === "iframe" && !isJsonResponse) {
           // Otherwise, send a message to the configure page
           await javascript(() => {
             window.parent.postMessage(
@@ -229,8 +237,9 @@ export const twitch =
           };
         }
       case "GET":
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`
+        if (!isJsonResponse) {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(`
     <div>
         <form
             method="POST"
@@ -322,5 +331,26 @@ export const twitch =
         </form>
     </div>
 `);
+        } else {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              configure: {
+                twitch: {
+                  twitch_client_id: TWITCH_ENVIRONMENT.TWITCH_CLIENT_ID,
+                  twitch_client_secret: TWITCH_ENVIRONMENT.TWITCH_CLIENT_SECRET,
+                  twitch_eventsub_http_url:
+                    TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_HTTP_URL,
+                  twitch_eventsub_websocket_url:
+                    TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_WEBSOCKET_URL,
+                  twitch_eventsub_keepalive_ms:
+                    TWITCH_ENVIRONMENT.TWITCH_EVENTSUB_KEEPALIVE_TIMEOUT_MS,
+                  twitch_irc_websocket_url:
+                    TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL,
+                },
+              },
+            })
+          );
+        }
     }
   };

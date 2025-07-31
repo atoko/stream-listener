@@ -6,14 +6,15 @@ import React, {
 } from "react";
 import { ApiContext } from "../ApiContextProvider";
 
+export type PluginInstancesServicePlugin = {
+  name: string;
+  path: string;
+  active: string;
+};
+
 export type PluginInstancesService = {
-  list: () => Promise<
-    Array<{
-      name: string;
-      path: string;
-      active: string;
-    }>
-  >;
+  isReady: boolean;
+  list: () => Promise<Array<PluginInstancesServicePlugin>>;
 };
 
 export const PluginInstancesServiceContext =
@@ -25,6 +26,7 @@ export const PluginInstancesServiceProvider = ({
   const { url } = useContext(ApiContext);
   const service = useMemo(() => {
     return {
+      isReady: url !== undefined,
       list: async () => {
         try {
           const response = await fetch(`${url}/plugins/?output=json`, {
@@ -32,12 +34,34 @@ export const PluginInstancesServiceProvider = ({
           });
 
           if (response.ok) {
-            return (await response.json()) as Awaited<
-              ReturnType<PluginInstancesService["list"]>
-            >;
+            const json = (await response.json()) as {
+              plugins: Array<PluginInstancesServicePlugin>;
+            };
+
+            return json.plugins;
           }
         } catch (error) {
           console.error(error);
+          throw error;
+        }
+      },
+      load: async (plugin: PluginInstancesServicePlugin) => {
+        try {
+          const { name, path, active } = plugin;
+          const response = await fetch(`${url}/plugins/instances/`, {
+            method: "POST",
+          });
+
+          if (response.ok) {
+            const json = (await response.json()) as {
+              plugins: Array<PluginInstancesServicePlugin>;
+            };
+
+            return json.plugins;
+          }
+        } catch (error) {
+          console.error(error);
+          throw error;
         }
       },
     };

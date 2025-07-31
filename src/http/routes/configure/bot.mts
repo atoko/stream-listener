@@ -94,8 +94,8 @@ const isValidBotConfigurationPost = (
     > = [
       [ConfigurationBotLabel.botId, botId, [alphanumeric, length]],
       [ConfigurationBotLabel.botName, botName, [alphanumeric, length]],
-      [ConfigurationBotLabel.botName, botScope, [length]],
-      [ConfigurationBotLabel.botName, botChannel, [length]],
+      [ConfigurationBotLabel.botScope, botScope, [length]],
+      [ConfigurationBotLabel.botChannel, botChannel, [length]],
     ] as const;
 
     const errors = fieldset
@@ -133,6 +133,7 @@ export const bot =
     configuration,
     loader,
     worker,
+    search,
   }: {
     readable: Readable;
     method: "POST" | "GET";
@@ -140,7 +141,13 @@ export const bot =
     configuration: ConfigurationEvents;
     loader: ConfigurationLoader;
     worker: WorkerContext;
+    search: string;
   }) => {
+    const params = new URLSearchParams(search);
+    const outputParam = params.get("output");
+    const reloadParam = params.get("reload");
+    const isJsonResponse = outputParam === "json";
+    const isReloadEnabled = reloadParam !== "false";
     switch (method) {
       // @ts-ignore
       case "POST":
@@ -167,10 +174,11 @@ export const bot =
 
         await ConfigurationLoader.saveAll(loader);
 
-        // Only reload the server if the request is from this configuration page
-        if (sec.fetchDest === "iframe") {
+        if (isReloadEnabled) {
           await loader.onSave(worker);
-        } else {
+        }
+
+        if (sec.fetchDest === "iframe" && !isJsonResponse) {
           // Otherwise, send a message to the configure page
           await javascript(() => {
             window.parent.postMessage(
@@ -185,8 +193,9 @@ export const bot =
           };
         }
       case "GET":
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`
+        if (!isJsonResponse) {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(`
     <div>
         <form
             method="POST"
@@ -251,5 +260,20 @@ export const bot =
         </form>
     </div>
 `);
+        } else {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              configure: {
+                bot: {
+                  twitch_bot_id: TWITCH_BOT.TWITCH_BOT_ID,
+                  twitch_bot_name: TWITCH_BOT.TWITCH_BOT_NAME,
+                  twitch_bot_scope: TWITCH_BOT.TWITCH_BOT_SCOPE,
+                  twitch_bot_channel: TWITCH_BOT.TWITCH_BOT_CHANNEL,
+                },
+              },
+            })
+          );
+        }
     }
   };

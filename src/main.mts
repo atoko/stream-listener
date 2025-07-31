@@ -24,15 +24,18 @@ import { PluginCollection } from "./plugins.mjs";
 
 const logger = Logger.child().withPrefix("[MAIN]");
 
+const worker = new WorkerContext();
 const container = new Container(
-  new WorkerContext(),
+  worker,
   new ProgramSignals(),
   new ConfigurationEvents(),
   new ConfigurationLoader(),
-  new PluginCollection()
+  new PluginCollection({
+    worker,
+  })
 );
 
-const { loader, worker, plugins } = container;
+const { loader, plugins } = container;
 
 if (isMainThread) {
   container.worker.thread = "main";
@@ -129,10 +132,10 @@ await (async () => {
 
       let isWorkerStarted = false;
       for await (const _ of on(oidc.caster, "authenticated")) {
-        logger.info("Caster connecting");
-        await caster.connect();
-        await caster.subscribe();
-        logger.debug("Caster subscribed");
+        // logger.info("Caster connecting");
+        // await caster.connect();
+        // await caster.subscribe();
+        // logger.debug("Caster subscribed");
 
         if (!isWorkerStarted) {
           logger.info("Starting worker thread");
@@ -149,10 +152,16 @@ await (async () => {
 
     once(loader, "load").then(async () => {
       once(oidc.bot, "authenticated").then(async () => {
-        logger.info("Connecting irc");
-        await irc.connect();
-        irc.subscribe();
-        logger.debug("irc subscribed");
+        for await (const _ of on(plugins, "active")) {
+          logger.info("Connecting irc");
+          if (await plugins.isActive()) {
+            await irc.connect();
+            irc.subscribe();
+            logger.debug("IRC subscribed");
+          } else {
+            console.warn("Plugins inactive, IRC not connected");
+          }
+        }
       });
 
       logger.debug("Listening to authentication events");

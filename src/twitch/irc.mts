@@ -202,6 +202,9 @@ export class TwitchIrcClient {
                 })
                 .warn("Could not retrieve token");
             }
+          } else {
+            logger.info("Invalid authentication, setting IRC active to false");
+            this.plugins.setActive(false);
           }
           logger.info("Resubscribing websocket handlers");
           this.subscribe();

@@ -7,6 +7,13 @@ import type { ParsedMessage } from "./twitch/irc/parse/message.mjs";
 import { IrcParseableCommandSet } from "./twitch/irc/parse/command.mjs";
 import type { Container } from "./container.mjs";
 import { Logger } from "./logging.mjs";
+import { parentPort } from "node:worker_threads";
+import type { WorkerContext } from "./worker.mjs";
+import type { IrcInputMessage } from "./twitch/irc.mjs";
+
+export type PluginActiveMessage = {
+  PluginActive: { active?: boolean; from?: "worker" | "main" };
+};
 
 const logger = Logger.child().withPrefix("[PLUGIN]");
 
@@ -54,6 +61,7 @@ export type PluginInstance = {
 
 export class PluginCollection extends EventEmitter {
   plugins: Record<string, PluginInstance> = {};
+  worker: WorkerContext;
   private active: boolean = false;
 
   static filepath() {
@@ -81,8 +89,9 @@ export class PluginCollection extends EventEmitter {
     return JSON.parse(input, reviver);
   };
 
-  constructor() {
+  constructor({ worker }: { worker: WorkerContext }) {
     super();
+    this.worker = worker;
   }
 
   public get(name: string): PluginInstance | undefined {
@@ -208,9 +217,29 @@ export class PluginCollection extends EventEmitter {
     logger.debug("Subscribed to chat input");
   };
 
+  private onWorkerMessage() {
+    const syncActive = async (data: unknown) => {
+      const PluginActiveMessage = (data as Partial<PluginActiveMessage>)
+        .PluginActive;
+      const { active, from } = PluginActiveMessage ?? {};
+      if (active !== undefined) {
+        if (!this.worker.thread.startsWith(from ?? "undefined")) {
+          await this.setActive(active);
+        }
+      }
+    };
+
+    parentPort?.on("message", syncActive);
+
+    this.worker.workers.forEach((worker) => {
+      worker.on("message", syncActive);
+    });
+  }
+
   public setupEventHandlers = (http: HttpServer, container: Container) => {
     logger.info("Setting up event handlers");
     this.onChatInput(http, { ...container });
+    this.onWorkerMessage();
   };
 
   public isActive = async (): Promise<boolean> => {
@@ -219,5 +248,27 @@ export class PluginCollection extends EventEmitter {
 
   public setActive = async (value: boolean) => {
     this.active = value;
+    if (this.worker.thread.startsWith("main")) {
+      this.worker.workers.forEach((worker) => {
+        worker?.postMessage({
+          PluginActive: {
+            active: value,
+            from: "main",
+          },
+        } as PluginActiveMessage);
+      });
+    } else {
+      parentPort?.postMessage({
+        PluginActive: {
+          active: value,
+          from: "worker",
+        },
+      } as PluginActiveMessage);
+    }
+    await this.onActive();
+  };
+
+  public onActive = async (): Promise<void> => {
+    this.emit("active", this.active);
   };
 }

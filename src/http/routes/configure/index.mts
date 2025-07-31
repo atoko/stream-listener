@@ -69,7 +69,7 @@ export const configure =
         src="/configure/broadcaster" 
       ></iframe>
       <iframe
-        name="configure_broadcaster" 
+        name="configure_bot" 
         src="/configure/bot" 
       ></iframe>                   
       <iframe

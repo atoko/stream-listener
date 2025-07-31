@@ -36,11 +36,6 @@ const startServer = async () => {
   }
 
   try {
-    console.log({
-      command,
-      cwd,
-      dataDirectory,
-    });
     const server = utilityProcess.fork(command, [], {
       cwd,
       env: {
