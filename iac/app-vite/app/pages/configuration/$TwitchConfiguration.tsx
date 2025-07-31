@@ -21,23 +21,26 @@ export const TwitchConfiguration = () => {
     id: useRef<HTMLInputElement>(null),
   };
 
-  const onSaveSubmit = useCallback((e: FormEvent) => {
-    e.preventDefault();
-    Promise.allSettled([
-      twitch({
-        twitch_client_id: refs.clientId?.current?.value,
-        twitch_client_secret: refs.clientSecret?.current?.value,
-      }),
-      bot({
-        twitch_bot_id: refs.id?.current?.value,
-        twitch_bot_name: refs.name?.current?.value,
-      }),
-    ]).then(async () => {
-      setTimeout(async () => {
-        await save();
-      }, 1500);
-    });
-  }, []);
+  const onSaveSubmit = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      Promise.allSettled([
+        twitch({
+          twitch_client_id: refs.clientId?.current?.value,
+          twitch_client_secret: refs.clientSecret?.current?.value,
+        }),
+        bot({
+          twitch_bot_id: refs.id?.current?.value,
+          twitch_bot_name: refs.name?.current?.value,
+        }),
+      ]).then(async () => {
+        setTimeout(async () => {
+          await save();
+        }, 1500);
+      });
+    },
+    [twitch, bot, save, isReady]
+  );
 
   useEffect(() => {
     if (isReady) {
@@ -67,7 +70,7 @@ export const TwitchConfiguration = () => {
         setLoading(false);
       });
     }
-  }, [isReady]);
+  }, [isReady, twitch, bot]);
 
   const isDataLoading = loading || !isReady;
 

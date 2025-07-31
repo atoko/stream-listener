@@ -23,8 +23,8 @@ export class TwitchIrcClient {
   plugins: PluginCollection;
   worker: WorkerContext;
 
-  private opened: boolean = false;
-  private closed: boolean = false;
+  public opened: boolean = false;
+  public closed: boolean = false;
 
   constructor(
     protected oidc: TwitchOIDC,
@@ -123,6 +123,7 @@ export class TwitchIrcClient {
   async connect() {
     logger.info(`Connecting to Twitch IRC WebSocket`);
     this.opened = false;
+    this.closed = false;
     this.websocket = new WebSocket(TWITCH_ENVIRONMENT.TWITCH_IRC_WEBSOCKET_URL);
 
     await new Promise((resolve) => {
@@ -204,7 +205,7 @@ export class TwitchIrcClient {
             }
           } else {
             logger.info("Invalid authentication, setting IRC active to false");
-            this.plugins.setActive(false);
+            this.plugins.setActive(false).then();
           }
           logger.info("Resubscribing websocket handlers");
           this.subscribe();
@@ -231,10 +232,20 @@ export class TwitchIrcClient {
     };
 
     logger.debug("Subscribed event handlers");
+    const websocket = this.websocket;
+    new Promise<void>(async (resolve) => {
+      while (websocket.readyState !== WebSocket.OPEN) {
+        await new Promise<void>((resolve) => {
+          logger.debug("Waiting for websocket readystate");
+          setTimeout(resolve, 800);
+        });
+      }
 
-    if (this.websocket.readyState === WebSocket.OPEN) {
-      this.open().then();
-    }
+      if (websocket.readyState === WebSocket.OPEN) {
+        this.open().then();
+      }
+      resolve();
+    }).then();
   }
 
   public private(
@@ -267,9 +278,12 @@ export class TwitchIrcClient {
         .warn(`Websocket not connected while sending message`);
     }
   }
-  public async close() {
+  public async close(reset?: boolean) {
     this.closed = true;
-    this.websocket?.close(1012);
+    this.websocket?.close();
+    if (reset) {
+      this.opened = false;
+    }
   }
 
   private async open() {
@@ -279,6 +293,7 @@ export class TwitchIrcClient {
     }
 
     if (this.opened) {
+      logger.warn("Connection already opened, skipping irc open");
       return;
     }
 

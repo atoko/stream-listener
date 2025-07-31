@@ -27,7 +27,7 @@ export const SERVICE_ENVIRONMENT = {
   ),
   SERVER_REDIRECT_URL:
     env.SERVER_REDIRECT_URL ||
-    `http://localhost:${env.SERVER_PORT}/~oidc/authorize`,
+    `http://localhost:${env.SERVER_PORT}/oidc/authorize`,
   SERVER_CONFIGURATION_URL:
     env.SERVER_CONFIGURATION_URL ||
     `http://localhost:${env.SERVER_PORT}/server/configure`,

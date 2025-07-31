@@ -33,10 +33,14 @@ export const PluginServiceProvider: FC<PropsWithChildren> = ({
             const json = (await response.json()) as {
               plugins?: {
                 active?: boolean;
+                irc?: {
+                  opened?: boolean;
+                  closed?: boolean;
+                };
               };
             };
 
-            return json.plugins.active;
+            return json.plugins.active && json.plugins.irc.opened === true;
           }
         } catch (error) {
           console.error(error);

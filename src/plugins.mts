@@ -223,6 +223,12 @@ export class PluginCollection extends EventEmitter {
         .PluginActive;
       const { active, from } = PluginActiveMessage ?? {};
       if (active !== undefined) {
+        logger
+          .withMetadata({
+            active,
+            from,
+          })
+          .info("Received worker message");
         if (!this.worker.thread.startsWith(from ?? "undefined")) {
           await this.setActive(active);
         }
@@ -249,6 +255,7 @@ export class PluginCollection extends EventEmitter {
   public setActive = async (value: boolean) => {
     this.active = value;
     if (this.worker.thread.startsWith("main")) {
+      logger.info("Setting active and forwarding to worker threads");
       this.worker.workers.forEach((worker) => {
         worker?.postMessage({
           PluginActive: {
@@ -258,6 +265,7 @@ export class PluginCollection extends EventEmitter {
         } as PluginActiveMessage);
       });
     } else {
+      logger.info("Setting active and forwarding to main port");
       parentPort?.postMessage({
         PluginActive: {
           active: value,
@@ -269,6 +277,7 @@ export class PluginCollection extends EventEmitter {
   };
 
   public onActive = async (): Promise<void> => {
+    logger.info("Emitting active event");
     this.emit("active", this.active);
   };
 }

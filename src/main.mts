@@ -4,7 +4,6 @@ import { websocketServer } from "./http/websocket.mts";
 import { TwitchCasterClient } from "./twitch/caster.mts";
 import {
   ConfigurationEvents,
-  PLUGIN_CONFIGURATION,
   TWITCH_BOT,
   TWITCH_BROADCASTER,
   TwitchEnvironment,
@@ -68,6 +67,10 @@ await (async () => {
   const irc = new TwitchIrcClient(oidc.bot, http, container);
   const caster = new TwitchCasterClient(oidc.caster, irc, container.plugins);
 
+  http.withIrc(irc);
+  irc.setupEventHandlers();
+  plugins.setupEventHandlers(http, container);
+
   const restart = async () => {
     logger
       .withMetadata({
@@ -130,47 +133,42 @@ await (async () => {
       oidc.caster.onListen();
       logger.debug("Http server started. Emitted 'listening' event");
 
-      let isWorkerStarted = false;
-      for await (const _ of on(oidc.caster, "authenticated")) {
-        // logger.info("Caster connecting");
-        // await caster.connect();
-        // await caster.subscribe();
-        // logger.debug("Caster subscribed");
-
-        if (!isWorkerStarted) {
-          logger.info("Starting worker thread");
-          worker.fork(new URL(import.meta.url), "worker");
-          isWorkerStarted = true;
-          irc.setupEventHandlers();
-          plugins.setupEventHandlers(http, container);
-          logger.debug("Worker thread started");
+      // let isWorkerStarted = false;
+      // for await (const _ of on(oidc.caster, "authenticated")) {
+      // logger.info("Caster connecting");
+      // await caster.connect();
+      // await caster.subscribe();
+      // logger.debug("Caster subscribed");
+      // if (!isWorkerStarted) {
+      //   logger.info("Starting worker thread");
+      //   worker.fork(new URL(import.meta.url), "worker");
+      //   isWorkerStarted = true;
+      //   logger.debug("Worker thread started");
+      // }
+      // }
+    });
+  }
+  once(loader, "load").then(async () => {
+    once(oidc.bot, "authenticated").then(async () => {
+      for await (const _ of on(plugins, "active")) {
+        logger.info("Connecting irc");
+        if (await plugins.isActive()) {
+          await irc.connect();
+          irc.subscribe();
+          logger.debug("IRC subscribed");
+        } else {
+          console.warn("Plugins inactive, IRC not connected");
+          await irc.close();
         }
       }
     });
-  } else {
-    irc.setupEventHandlers();
 
-    once(loader, "load").then(async () => {
-      once(oidc.bot, "authenticated").then(async () => {
-        for await (const _ of on(plugins, "active")) {
-          logger.info("Connecting irc");
-          if (await plugins.isActive()) {
-            await irc.connect();
-            irc.subscribe();
-            logger.debug("IRC subscribed");
-          } else {
-            console.warn("Plugins inactive, IRC not connected");
-          }
-        }
-      });
+    logger.debug("Listening to authentication events");
 
-      logger.debug("Listening to authentication events");
-
-      logger.info("Waiting for bot authentication");
-      oidc.bot.onListen();
-      logger.debug("Emitted server ready");
-    });
-  }
+    logger.info("Waiting for bot authentication");
+    oidc.bot.onListen();
+    logger.debug("Emitted server ready");
+  });
 
   ConfigurationLoader.loadAll(loader);
 })();

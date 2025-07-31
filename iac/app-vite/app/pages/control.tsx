@@ -1,22 +1,34 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Fragment } from "react";
 import { PluginServiceContext } from "../ui/api/plugin/PluginServiceProvider";
 import { clsx } from "clsx";
+import { ApiContext } from "../ui/api/ApiContextProvider";
 
 export const StartStopControls = () => {
   const pluginService = useContext(PluginServiceContext);
+  const { url } = useContext(ApiContext);
   const [isLoading, setIsLoading] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const ready = url !== undefined;
 
   const updateActive = useCallback(async () => {
     try {
       setIsLoading(true);
       const active = await pluginService.active();
       setIsActive(active);
+      setHasLoaded(true);
     } finally {
       setIsLoading(false);
     }
-  }, [pluginService]);
+  }, [ready, pluginService]);
 
   const onStartButton = useCallback(async () => {
     if (pluginService) {
@@ -50,6 +62,20 @@ export const StartStopControls = () => {
     }
   }, [pluginService, setIsLoading]);
 
+  useEffect(() => {
+    if (ready) {
+      updateActive().then();
+
+      const interval = setInterval(async () => {
+        await updateActive();
+      }, 2000);
+
+      return () => {
+        clearInterval(interval);
+      };
+    }
+  }, [updateActive, ready]);
+
   return (
     <Fragment>
       <div
@@ -62,7 +88,6 @@ export const StartStopControls = () => {
         id="controls"
         className="box"
         style={{
-          visibility: isLoading ? "hidden" : "visible",
           display: "flex",
           justifyContent: "end",
           alignItems: "center",
@@ -73,7 +98,7 @@ export const StartStopControls = () => {
         <button
           id="start"
           className={clsx("button", isActive ? "is-light" : "", "is-primary")}
-          disabled={isActive}
+          disabled={isActive || !hasLoaded}
           onClick={onStartButton}
         >
           Start
@@ -81,7 +106,7 @@ export const StartStopControls = () => {
         <button
           id="stop"
           className={clsx("button", !isActive ? "is-light" : "", "is-primary")}
-          disabled={!isActive}
+          disabled={!isActive || !hasLoaded}
           onClick={onStopButton}
         >
           Stop

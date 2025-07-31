@@ -11,7 +11,7 @@ if (started) {
 
 let serverPort: number | undefined;
 const startServer = async () => {
-  const port = await getPortPromise();
+  const port = 3133; //await getPortPromise();
   serverPort = port;
 
   let command: string;
@@ -42,6 +42,7 @@ const startServer = async () => {
         SERVER_PORT: String(port),
         NODE_OPTIONS: "--experimental-vm-modules",
         DATA_DIRECTORY: dataDirectory,
+        LOG_LEVEL: "6",
       },
     });
 

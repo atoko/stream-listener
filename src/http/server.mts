@@ -23,6 +23,7 @@ import { pluginsInstances } from "./routes/plugins/instances.mjs";
 import { pluginsActive } from "./routes/plugins/active.mjs";
 import { pluginsStart } from "./routes/plugins/start.mjs";
 import { pluginsStop } from "./routes/plugins/stop.mjs";
+import type { TwitchIrcClient } from "../twitch/irc.mjs";
 
 declare global {
   interface Window {
@@ -64,10 +65,12 @@ export type DuplexStream = ReturnType<typeof createDuplex>;
 export function httpServer({ entities, container }: HttpServerOptions) {
   const { worker } = container;
 
+  let ircClient: TwitchIrcClient | undefined = undefined;
+
   // Outgoing
-  const irc = createDuplex();
+  const ircDuplex = createDuplex();
   // Incoming
-  const chat = createDuplex();
+  const chatDuplex = createDuplex();
 
   const server = createServer(async (readable, res) => {
     const url = new URL(readable.url!, `http://${readable.headers.host}`);
@@ -144,6 +147,7 @@ export function httpServer({ entities, container }: HttpServerOptions) {
           });
         case "active":
           return pluginsActive(res)({
+            irc: ircClient,
             ...container,
           });
         case "instances":
@@ -215,12 +219,12 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       switch (endpoint) {
         case "stream":
           return chatStream(res)({
-            ircDuplex: irc,
+            ircDuplex: ircDuplex,
           });
         case "input":
           return await chatInput(res)({
             readable,
-            chatDuplex: chat,
+            chatDuplex: chatDuplex,
           });
         default:
           return await chatPage(res)();
@@ -285,6 +289,9 @@ export function httpServer({ entities, container }: HttpServerOptions) {
         server.close();
       }
     },
+    withIrc: (irc: TwitchIrcClient) => {
+      ircClient = irc;
+    },
     configuration: {
       open: async (prompt: string) => {
         const url = SERVICE_ENVIRONMENT.SERVER_CONFIGURATION_URL;
@@ -308,8 +315,8 @@ export function httpServer({ entities, container }: HttpServerOptions) {
       },
     },
     streams: {
-      irc,
-      chat,
+      irc: ircDuplex,
+      chat: chatDuplex,
     },
   };
 }
